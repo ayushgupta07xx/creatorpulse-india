@@ -1,0 +1,36 @@
+# Local/system hooks invoke the venv's tools so hook version == local fixer (ADR-0004).
+# Run with the venv active so `ruff`/`mypy`/`sqlfluff` resolve to .venv.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: check-yaml
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff (lint, autofix)
+        entry: ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff (format)
+        entry: ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy
+        entry: mypy
+        language: system
+        types: [python]
+        files: ^(apps|scripts)/
+      - id: sqlfluff
+        name: sqlfluff (lint)
+        entry: sqlfluff lint
+        language: system
+        files: ^warehouse/.*\.sql$

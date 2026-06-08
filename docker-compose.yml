@@ -1,0 +1,85 @@
+# Day 1-2: `docker compose up -d postgres` (light).
+# Day 3+:  `docker compose --profile airflow up -d` brings up Airflow (LocalExecutor).
+# Host ports remapped to coexist with other projects on this host (ADR-0003).
+
+x-airflow-env: &airflow-env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+  YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: creatorpulse-postgres
+    environment:
+      POSTGRES_USER: creatorpulse
+      POSTGRES_PASSWORD: creatorpulse
+      POSTGRES_DB: creatorpulse
+    ports:
+      - "5436:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./warehouse/sql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U creatorpulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow-db:
+    image: postgres:16
+    profiles: ["airflow"]
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - airflowdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airflow-init:
+    image: apache/airflow:2.9.3-python3.11
+    profiles: ["airflow"]
+    depends_on:
+      airflow-db:
+        condition: service_healthy
+    environment:
+      <<: *airflow-env
+    entrypoint: /bin/bash
+    command: -c "airflow db migrate && airflow users create --username admin --password admin --firstname a --lastname g --role Admin --email admin@example.com"
+
+  airflow-webserver:
+    image: apache/airflow:2.9.3-python3.11
+    profiles: ["airflow"]
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *airflow-env
+    ports:
+      - "8088:8080"
+    volumes:
+      - ./orchestration/airflow/dags:/opt/airflow/dags
+    command: webserver
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.3-python3.11
+    profiles: ["airflow"]
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    environment:
+      <<: *airflow-env
+    volumes:
+      - ./orchestration/airflow/dags:/opt/airflow/dags
+    command: scheduler
+
+volumes:
+  pgdata:
+  airflowdata:

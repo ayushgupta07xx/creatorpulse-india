@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# env / secrets
+.env
+.env.local
+*.key
+
+# data: derived extracts are gitignored (>500KB pre-commit cap); generators are the source of record
+data/raw/
+data/exports/
+*.parquet
+data/seed_channels.csv
+
+# notebooks
+.ipynb_checkpoints/
+
+# ml / mlflow
+mlruns/
+*.joblib
+models/*.joblib
+
+# dbt
+warehouse/dbt_project/target/
+warehouse/dbt_project/dbt_packages/
+warehouse/dbt_project/logs/
+
+# os / editor
+.DS_Store
+.vscode/

@@ -1,0 +1,70 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "creatorpulse-india"
+version = "0.1.0"
+description = "Creator-economy intelligence platform for the Indian market: growth analytics, engagement-quality screening, and brand-creator matching over the official YouTube Data API."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Ayush Gupta" }]
+
+dependencies = [
+  "requests>=2.32",
+  "python-dotenv>=1.0",
+  "pyyoutube>=0.9",
+  "pandas>=2.2",
+  "numpy>=1.26",
+  "sqlalchemy>=2.0",
+  "psycopg[binary]>=3.1",
+  "alembic>=1.13",
+  "pydantic>=2.7",
+  "tenacity>=8.3",
+]
+
+[project.optional-dependencies]
+ml = [
+  "scikit-learn>=1.5",
+  "xgboost>=2.0",
+  "lightgbm>=4.3",
+  "sentence-transformers>=3.0",
+  "prophet>=1.1",
+  "statsmodels>=0.14",
+  "optuna>=3.6",
+  "mlflow>=2.13",
+  "shap>=0.45",
+  "bertopic>=0.16",
+  "scipy>=1.13",
+]
+viz = ["plotly>=5.22", "seaborn>=0.13", "matplotlib>=3.9"]
+app = ["streamlit>=1.32", "posthog>=3.5", "redis>=5.0"]
+warehouse = ["dbt-core>=1.7", "dbt-postgres>=1.7"]
+dev = [
+  "ruff==0.6.9",
+  "mypy>=1.10",
+  "sqlfluff>=3.1",
+  "pytest>=8.2",
+  "pre-commit>=3.7",
+  "types-requests",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["apps"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_implicit_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

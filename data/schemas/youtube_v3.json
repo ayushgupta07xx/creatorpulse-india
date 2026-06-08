@@ -1,0 +1,33 @@
+{
+  "channel": {
+    "channel_id": "id",
+    "title": "snippet.title",
+    "custom_url": "snippet.customUrl",
+    "description": "snippet.description",
+    "country": "snippet.country",
+    "default_language": "snippet.defaultLanguage",
+    "published_at": "snippet.publishedAt",
+    "subscriber_count": "statistics.subscriberCount",
+    "view_count": "statistics.viewCount",
+    "video_count": "statistics.videoCount",
+    "uploads_playlist_id": "contentDetails.relatedPlaylists.uploads"
+  },
+  "video": {
+    "video_id": "id",
+    "channel_id": "snippet.channelId",
+    "title": "snippet.title",
+    "description": "snippet.description",
+    "tags": "snippet.tags",
+    "published_at": "snippet.publishedAt",
+    "duration": "contentDetails.duration",
+    "view_count": "statistics.viewCount",
+    "like_count": "statistics.likeCount",
+    "comment_count": "statistics.commentCount"
+  },
+  "quota_units": {
+    "channels.list": 1,
+    "playlistItems.list": 1,
+    "videos.list": 1,
+    "search.list": 100
+  }
+}

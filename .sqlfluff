@@ -1,0 +1,8 @@
+[sqlfluff]
+dialect = postgres
+templater = jinja
+max_line_length = 100
+# Day 4 switches templater = dbt once the dbt project is wired.
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
