@@ -14,7 +14,7 @@ authors = [{ name = "Ayush Gupta" }]
 dependencies = [
   "requests>=2.32",
   "python-dotenv>=1.0",
-  "pyyoutube>=0.9",
+  "python-youtube>=0.9",
   "pandas>=2.2",
   "numpy>=1.26",
   "sqlalchemy>=2.0",
