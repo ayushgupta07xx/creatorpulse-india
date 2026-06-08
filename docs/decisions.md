@@ -29,3 +29,19 @@
 **Decision:** Alembic owns only the operational layer the Python pipeline writes to: `raw.youtube_channels` / `raw.youtube_videos` (append-only JSONB), the normalized `staging.channels` / `staging.channel_metrics_daily` / `staging.videos`, and `marts.channel_embeddings` (pgvector 384-dim, ML-written). dbt owns the dimensional marts (`dim_channel`, `dim_niche`, `dim_date`, `fact_channel_metrics_daily`, `fact_video`, `mart_*`), reading `staging.*` as sources. dbt never manages `channel_embeddings`.
 
 **Consequences:** No dbt/Alembic collision. `marts` is shared but table names are disjoint. The SCD2 snapshot on `dim_channel` (Day 4) reads from `staging.channels`.
+
+## ADR-0007 — Airflow ingest runs in an isolated venv on a custom image
+**Status:** Accepted (Day 3)
+**Context:** Airflow 2.9 pins SQLAlchemy 1.4; a full `pip install -e .` pulls SQLAlchemy 2.0 + Alembic (pgvector extra) and collides with Airflow's ORM.
+**Decision:** Custom image (`docker/airflow/Dockerfile`) builds `/opt/ingest-venv` with only the slim ingest runtime. DAGs are pure BashOperators running `/opt/ingest-venv/bin/python -m apps.ingest.refresh …` against `apps/` mounted read-only at `/opt/airflow/project`. Airflow's env stays untouched.
+**Consequences:** No ORM conflict; DAGs import only airflow+pendulum. Cost: ~2-min image build + a second venv.
+
+## ADR-0008 — Host port remap for the Airflow webserver → 8089 (extends ADR-0003)
+**Status:** Accepted (Day 3)
+**Context:** Host 8080 = sentinelops; host 8088 = jobatlas-airflow-webserver. The Day-2 plan's 8088 mapping would fail to bind.
+**Decision:** Publish CreatorPulse's webserver on host 8089 (`8089:8080`). Never free another project's port.
+
+## ADR-0009 — Recurring ingest reads the universe from the DB; uploads playlist derived UC→UU
+**Status:** Accepted (Day 3)
+**Context:** `data/seed_channels.csv` is gitignored/host-only and `staging.channels` doesn't store the uploads playlist id.
+**Decision:** `apps.ingest.refresh` selects the channel set from `staging.channels` (subs-ranked into tiers), decoupling the recurring path from the CSV. The uploads playlist id is derived as `UU`+channel_id[2:] (YouTube convention) — no schema change to fetch videos. `static_ingest` stays the CSV-seeded one-shot bootstrap.

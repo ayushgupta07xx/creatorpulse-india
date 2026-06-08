@@ -34,3 +34,4 @@ warehouse/dbt_project/logs/
 # os / editor
 .DS_Store
 .vscode/
+data/quota_usage.json

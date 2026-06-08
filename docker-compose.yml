@@ -1,6 +1,19 @@
 # Day 1-2: `docker compose up -d postgres` (light).
-# Day 3+:  `docker compose --profile airflow up -d` brings up Airflow (LocalExecutor).
-# Host ports remapped to coexist with other projects on this host (ADR-0003).
+# Day 3+:  `docker compose --profile airflow up -d --build` brings up Airflow
+#          (LocalExecutor) on a CUSTOM image with an isolated ingest venv
+#          (docker/airflow/Dockerfile).
+# Host ports remapped to coexist with other projects on this host (ADR-0003):
+#   webserver 8089:8080  (8088 is jobatlas-airflow, host 8080 is sentinelops).
+
+x-airflow-build: &airflow-build
+  build:
+    context: .
+    dockerfile: docker/airflow/Dockerfile
+  image: creatorpulse-airflow:2.9.3
+  # Run as the host uid (group 0) so tasks can write the host-mounted ./data
+  # (quota_usage.json). The official Airflow image supports arbitrary uid + gid 0.
+  # Set AIRFLOW_UID in .env:  echo "AIRFLOW_UID=$(id -u)" >> .env
+  user: "${AIRFLOW_UID:-50000}:0"
 
 x-airflow-env: &airflow-env
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -8,6 +21,14 @@ x-airflow-env: &airflow-env
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
   AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
   YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+  # In-network DSN for the ingest tasks: localhost:5436 is a host mapping and is
+  # NOT reachable from inside a container -- use the compose service name.
+  DATABASE_URL: postgresql://creatorpulse:creatorpulse@postgres:5432/creatorpulse
+
+x-airflow-volumes: &airflow-volumes
+  - ./orchestration/airflow/dags:/opt/airflow/dags
+  - ./apps:/opt/airflow/project/apps:ro
+  - ./data:/opt/airflow/project/data
 
 services:
   postgres:
@@ -44,7 +65,7 @@ services:
       retries: 5
 
   airflow-init:
-    image: apache/airflow:2.9.3-python3.11
+    <<: *airflow-build
     profiles: ["airflow"]
     depends_on:
       airflow-db:
@@ -55,29 +76,31 @@ services:
     command: -c "airflow db migrate && airflow users create --username admin --password admin --firstname a --lastname g --role Admin --email admin@example.com"
 
   airflow-webserver:
-    image: apache/airflow:2.9.3-python3.11
+    <<: *airflow-build
     profiles: ["airflow"]
     depends_on:
       airflow-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     environment:
       <<: *airflow-env
     ports:
-      - "8088:8080"
-    volumes:
-      - ./orchestration/airflow/dags:/opt/airflow/dags
+      - "8089:8080"
+    volumes: *airflow-volumes
     command: webserver
 
   airflow-scheduler:
-    image: apache/airflow:2.9.3-python3.11
+    <<: *airflow-build
     profiles: ["airflow"]
     depends_on:
       airflow-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     environment:
       <<: *airflow-env
-    volumes:
-      - ./orchestration/airflow/dags:/opt/airflow/dags
+    volumes: *airflow-volumes
     command: scheduler
 
 volumes:
