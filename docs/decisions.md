@@ -208,3 +208,28 @@ Two data realities force simulated cohorts (as in ADR-0011/0013):
 - Niche accel/decline is size-weighted absolute slope; the R notebook adds the
   relative ranking. `mart_niche_demand_forecast` population deferred.
 - Both joblibs under the 500 KB cap (1 KB / 111 KB).
+
+## ADR-0015 — Creator growth curve is a niche-trend projection, not measured history
+
+**Status:** Accepted (Day 9)
+**Context:** `channel_metrics_daily` holds a single snapshot, so all dbt
+growth/velocity columns on `mart_creator_features` are null. There is no
+per-channel time series to chart.
+**Decision:** The creator-page growth visual plots the real current point plus a
+dotted niche-trend projection, explicitly captioned as *not measured history*.
+The brand-page match inherits the same single-snapshot reality.
+**Consequences:** Honest about the data limit; revisit once daily snapshots
+accumulate enough history to plot a real per-channel trajectory.
+
+## ADR-0016 — Brand shortlist persists in an app-managed `app` schema, not Alembic
+
+**Status:** Accepted (Day 9)
+**Context:** Alembic owns the durable ingestion/operational layer (staging,
+channel_metrics_daily); dbt owns marts. The brand shortlist is ephemeral,
+per-session frontend UI state — a different concern.
+**Decision:** brand.py creates `app.brand_shortlist` idempotently
+(`create schema/table if not exists`) at runtime. It is not an Alembic migration,
+keeping Alembic scoped to data-pipeline schema and avoiding coupling UI state to
+pipeline migrations.
+**Consequences:** The frontend owns its own CRUD. If shortlists ever need to be
+durable/shared across sessions, promote the table to Alembic management.

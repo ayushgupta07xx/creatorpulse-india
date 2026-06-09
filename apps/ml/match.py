@@ -29,6 +29,7 @@ import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import create_engine, text
 
+import apps.ml.earnings as earnings
 import apps.ml.features as features
 
 REPO = Path(__file__).resolve().parents[2]
@@ -113,6 +114,30 @@ def attach_fraud_risk(eng, df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def attach_est_earnings(eng, df: pd.DataFrame) -> pd.DataFrame:
+    """OLS earnings estimate (Day-7 regressor) as the campaign-cost proxy.
+
+    Reuses earnings.load_real + build_design so the design matrix matches
+    the trained coefficients exactly; falls back to the CPM proxy on error.
+    """
+    ebundle = joblib.load(MODELS_DIR / "earnings_regressor_v1.joblib")
+    try:
+        real = earnings.load_real(eng)
+        derived = real[["channel_id", "monthly_views", "posting_cadence_mean", "is_long_form"]]
+        merged = df.merge(derived, on="channel_id", how="left")
+        merged["monthly_views"] = merged["monthly_views"].fillna(merged["mean_views"])
+        cad_med = merged["posting_cadence_mean"].median()
+        merged["posting_cadence_mean"] = merged["posting_cadence_mean"].fillna(cad_med)
+        merged["is_long_form"] = merged["is_long_form"].fillna(0.0)
+        x, _ = earnings.build_design(merged, ebundle["niches"])
+        log_pred = x @ np.asarray(ebundle["params"], dtype=float)
+        df["est_cost_inr"] = np.expm1(log_pred).clip(min=1.0)
+    except Exception as exc:  # noqa: BLE001
+        print(f"earnings estimate fell back to CPM proxy: {exc}")
+        df["est_cost_inr"] = df.apply(lambda r: _est_cost(r["niche"], r["mean_views"]), axis=1)
+    return df
+
+
 def _est_cost(niche, mean_views) -> float:
     cpm = CPM.get(niche, CPM_DEFAULT)
     return float(mean_views or 0.0) * cpm / 1000.0
@@ -128,6 +153,7 @@ def match(
     bundle = joblib.load(MODELS_DIR / "cluster_assignments_v1.joblib")
     creators, centroids = load_creators(eng, bundle)
     creators = attach_fraud_risk(eng, creators)
+    creators = attach_est_earnings(eng, creators)
 
     encoder = SentenceTransformer(MODEL_NAME)
     qvec = encoder.encode([brief], normalize_embeddings=True)[0]
@@ -154,7 +180,6 @@ def match(
         lambda cl: float(np.clip(np.dot(qv, centroids[int(cl)]), 0.0, 1.0))
     )
     budget = budget_lakh * 1e5
-    cand["est_cost_inr"] = cand.apply(lambda r: _est_cost(r["niche"], r["mean_views"]), axis=1)
     cand["budget_fit"] = budget / (cand["est_cost_inr"] + budget)
     cand["final_score"] = (
         W_COSINE * cand["cosine"]

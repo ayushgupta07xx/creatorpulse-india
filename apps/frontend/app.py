@@ -1,6 +1,7 @@
 """CreatorPulse India — Streamlit entry point (landing + About)."""
 
 import streamlit as st
+from components.about import render_about_sidebar
 
 st.set_page_config(page_title="CreatorPulse India", page_icon="📊", layout="wide")
 
@@ -24,12 +25,4 @@ with right:
 st.divider()
 
 with st.sidebar:
-    st.markdown("#### About")
-    st.markdown(
-        "**CreatorPulse India** — built by **Ayush Gupta**.  \n"
-        "[GitHub](https://github.com/ayushgupta07xx) · [LinkedIn](https://www.linkedin.com/in/ayush-gupta-544a803a2)"
-    )
-    st.caption(
-        "Data via the official YouTube Data API v3. Engagement and earnings "
-        "figures are model estimates, not platform-verified."
-    )
+    render_about_sidebar()
