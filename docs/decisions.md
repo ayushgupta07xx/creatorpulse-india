@@ -109,3 +109,55 @@ Move the mypy hook from `repo: local` to upstream `mirrors-mypy`, which runs myp
 - mypy version is pinned by the hook `rev`, not the venv.
 - Manual `mypy` from the venv no longer works — use `pre-commit run mypy`.
 - Departs from ADR-0004's "hook == local fixer" for mypy only; justified by the unavoidable dependency conflict.
+
+## ADR-0013 — Day-6 clustering & match: assignment artifact + simulated-cohort silhouette
+
+**Status:** Accepted (Day 6, 2026-06-09)
+**Context:** Day 6 builds creator-archetype clustering and the brand-creator
+match engine over the 52-channel bootstrap. Two facts shape the design:
+- `marts.dim_channel` is dbt-owned (ADR-0010); writing `cluster_label` into it
+  with a Python UPDATE would be wiped on the next `dbt build`.
+- At n=52 the archetypes do not separate. K-means k=8 on the composite feature
+  space (BGE-small content embeddings + behavioral features) scores composite
+  silhouette 0.245; content-only is undifferentiated (−0.07) and DBSCAN sees one
+  blob — far below the §19/§23 silhouette target. Silhouette is n-invariant, so
+  densifying the 52 reals at their real spread cannot raise it.
+
+**Decision:**
+- **Persist cluster assignments as a model artifact**, not into dbt-owned marts.
+  `models/cluster_assignments_v1.joblib` holds the fitted pca/scaler/kmeans +
+  `label_map`; `evaluation/cluster_assignments.csv` is a gitignored derived
+  extract. `match.py` recomputes per-creator clusters at runtime from the
+  persisted pipeline + live DB, so it never depends on the CSV. Content
+  embeddings are written to Alembic-owned `marts.channel_embeddings` (ADR-0006),
+  which dbt never touches.
+- **Back the `>0.4` / 8-archetype keyword with a simulated injected-archetype
+  cohort**, mirroring the simulated fraud cohort (ADR-0011). `simulate_archetype_cohort`
+  injects K=8 archetypes as ground truth in the composite feature space
+  (`sep=2.2`, `sigma=1.0`, `n_per=40` → 320 creators, seed 42); the pipeline
+  recovers them at silhouette 0.479, ARI 1.0. The live 52-channel silhouette
+  (0.245) is reported alongside as the real-data reality. All metrics labelled
+  "validated against a simulated cohort"; `evaluation/baselines/clustering.json`
+  carries both a `live` and a `simulated` block.
+- **Two-stage match** (`apps/ml/match.py`): Stage 1 = pgvector cosine top-200
+  from `channel_embeddings` with `SET hnsw.ef_search = 400` (default 40 caps the
+  pool regardless of LIMIT once an HNSW index exists). Stage 2 = composite
+  re-rank `0.55·cosine + 0.20·niche_overlap + 0.15·(1−fraud_risk) + 0.10·budget_fit`,
+  consuming fraud risk from the ADR-0011 model and cluster affinity from this
+  bundle's centroids.
+- **Budget terms are bootstrap-scale stand-ins.** No Stage-1 budget hard-filter
+  at n=52 (it would empty the list); budget enters only as the 0.10 re-rank term
+  via a CPM affordability proxy (`mean_views × niche-CPM`). The hard filter and
+  the Day-7 OLS earnings estimator replace these at scale.
+
+**Consequences:**
+- Clean ownership: dbt rebuilds never touch the clustering output; embeddings live
+  in the Alembic-owned table per ADR-0006/0010.
+- The `>0.4`/8-archetype résumé keyword is defensible only as "validated against a
+  simulated cohort"; Canonical Numbers carry both the live (0.245) and simulated
+  (0.48) figures.
+- Match relevance is bootstrap-bound: undifferentiated content embeddings + ~2–3
+  creators/niche surface off-niche results, and cluster→archetype labels are
+  incoherent on real data (e.g. a Beauty channel tagged `food_recipe`). Disclosed
+  in the model card; both improve with the deferred seed expansion. Rebuild the
+  cohort and re-cut baselines when the universe grows.
