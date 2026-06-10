@@ -15,6 +15,7 @@ if str(_FRONTEND) not in sys.path:
     sys.path.insert(0, str(_FRONTEND))
 
 from components import data  # noqa: E402
+from components.about import render_about_sidebar  # noqa: E402
 
 st.set_page_config(page_title="CreatorPulse — Creator", page_icon="📈", layout="wide")
 st.title("📈 Creator Intelligence")
@@ -219,13 +220,4 @@ if not vids.empty:
 else:
     st.info("No videos found for this archetype.")
 
-with st.sidebar:
-    st.markdown("#### About")
-    st.markdown(
-        "**CreatorPulse India** — built by **Ayush Gupta**.  \n"
-        "[GitHub](https://github.com/ayushgupta07xx) · [LinkedIn](https://www.linkedin.com/in/ayush-gupta-544a803a2)"
-    )
-    st.caption(
-        "Data via the official YouTube Data API v3. Engagement and earnings "
-        "figures are model estimates, not platform-verified."
-    )
+render_about_sidebar()
