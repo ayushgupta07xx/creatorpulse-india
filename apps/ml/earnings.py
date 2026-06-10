@@ -74,6 +74,9 @@ def load_real(eng) -> pd.DataFrame:
     f["monthly_views"] = (per_video * months).clip(lower=1.0)
     f["posting_cadence_mean"] = f["mean_inter_video_days"].astype(float)
     f["is_long_form"] = (f["mean_duration_seconds"].astype(float) > LONG_FORM_SECONDS).astype(float)
+    # Zero-upload/thin channels have no view data -> NaN monthly_views, which
+    # poisons det.std() in the cohort. Earnings are not estimable without views.
+    f = f.dropna(subset=["monthly_views"]).reset_index(drop=True)
     return f
 
 
