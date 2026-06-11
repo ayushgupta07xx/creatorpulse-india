@@ -233,3 +233,19 @@ keeping Alembic scoped to data-pipeline schema and avoiding coupling UI state to
 pipeline migrations.
 **Consequences:** The frontend owns its own CRUD. If shortlists ever need to be
 durable/shared across sessions, promote the table to Alembic management.
+
+## ADR-0017: Niche selection is a hard Stage-1 filter
+**Status:** Accepted
+The "Niche focus" control was only appended to the brief text and given a 0.20 rerank
+weight, so a bare-name brief could surface off-niche creators (e.g. Comedy → an Education
+channel). Made it a hard candidate-set filter in Stage 1, consistent with §13's
+"candidate generation with filters". A/B-orthogonal (applies to both rerank variants).
+
+## ADR-0018: Earnings monthly_views estimated from cadence, not sampled video count
+**Status:** Accepted
+Ingestion captures a bounded recent-video sample (~10/channel), so videos_last_90d
+under-counts true output for high-frequency creators, biasing AdSense estimates 10-100x
+low (LoLzZz Gaming: ~1.2M vs ~11M real monthly views) and saturating budget_fit. load_real
+now estimates monthly uploads as 30.44/mean_inter_video_days (capped 60), falling back to
+the sampled count when cadence is unknown. Inference-only change; the simulated-cohort
+R²=0.67 is unaffected.
