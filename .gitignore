@@ -49,3 +49,6 @@ data/seed_channels.bootstrap.csv
 seedexp/
 discoscale/
 seed_builder/
+
+# Streamlit secrets (PostHog key) — never commit
+.streamlit/secrets.toml
