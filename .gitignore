@@ -52,3 +52,4 @@ seed_builder/
 
 # Streamlit secrets (PostHog key) — never commit
 .streamlit/secrets.toml
+analysis/output/

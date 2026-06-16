@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 
 import apps.ml.match as match_engine
+from apps.api.cache import cache_get, cache_set
 from apps.ingest import quota_tracker
 from apps.ml.pricing import sponsored_cost
 
@@ -124,12 +125,17 @@ def metrics() -> dict:
 
 @app.get("/stats")
 def stats() -> dict:
+    cached = cache_get("stats")
+    if cached is not None:
+        return cached
     df = _display()
-    return {
+    out = {
         "creators": int(len(df)),
         "niches": int(df["niche"].nunique()),
         "archetypes": int(df["archetype"].nunique()),
     }
+    cache_set("stats", out, ttl_seconds=300)
+    return out
 
 
 @app.get("/creators")
@@ -169,6 +175,10 @@ def get_creator(channel_id: str) -> dict:
 
 @app.get("/niches/{niche}/forecast")
 def get_niche_forecast(niche: str) -> dict:
+    cache_key = f"forecast:{niche}"
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
     fc = _forecast()
     forecasts = fc.get("forecasts", {})
     if niche not in forecasts:
@@ -178,7 +188,9 @@ def get_niche_forecast(niche: str) -> dict:
         series = _records(series)
     elif isinstance(series, pd.Series):
         series = json.loads(series.to_json(date_format="iso"))
-    return {"niche": niche, "slope": fc.get("slopes", {}).get(niche), "forecast": series}
+    out = {"niche": niche, "slope": fc.get("slopes", {}).get(niche), "forecast": series}
+    cache_set(cache_key, out, ttl_seconds=3600)
+    return out
 
 
 class MatchRequest(BaseModel):
