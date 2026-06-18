@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #07070b;
+  color: #ececf2;
+}
+
+::selection {
+  background: rgba(156, 139, 255, 0.3);
+  color: #ececf2;
+}
+
+/* Signature: a slow aurora drifts behind the hero. */
+.aurora-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.5;
+  animation: aurora-drift 26s ease-in-out infinite alternate;
+}
+.aurora-b1 { width: 520px; height: 520px; background: #6e54ff; top: -120px; left: 2%; }
+.aurora-b2 { width: 460px; height: 460px; background: #1fb6a6; top: 0; right: 6%; animation-delay: -8s; }
+.aurora-b3 { width: 440px; height: 440px; background: #ff5fa8; bottom: -90px; left: 28%; opacity: 0.32; animation-delay: -14s; }
+.aurora-b4 { width: 500px; height: 500px; background: #6e54ff; bottom: -150px; right: 10%; opacity: 0.34; animation-delay: -4s; }
+
+.aurora-spot {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(440px circle at var(--mx, 50%) var(--my, 28%), rgba(255, 255, 255, 0.06), transparent 60%);
+  transition: background 0.15s;
+}
+
+@keyframes aurora-drift {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(40px, 30px) scale(1.12); }
+  100% { transform: translate(-30px, 20px) scale(0.96); }
+}
+
+/* Premium button sheen sweep on hover. */
+.btn-sheen { position: relative; overflow: hidden; }
+.btn-sheen::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+  transition: left 0.6s;
+}
+.btn-sheen:hover::after { left: 160%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob { animation: none; }
+  .aurora-spot { display: none; }
+  .btn-sheen::after { display: none; }
+}
+
+/* Shimmer for the demo/GIF placeholder slot. */
+.shimmer {
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.03) 30%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 2.4s linear infinite;
+}
+@keyframes shimmer {
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer { animation: none; }
+}

@@ -34,7 +34,7 @@ from sentence_transformers import SentenceTransformer
 from sqlalchemy import create_engine, text
 
 import apps.ml.features as features
-from apps.ml.pricing import CPM, CPM_DEFAULT, SPONSORED_CPM_FACTOR
+from apps.ml.pricing import CPM, CPM_DEFAULT, tier_band
 
 REPO = Path(__file__).resolve().parents[2]
 MODELS_DIR = REPO / "models"
@@ -106,19 +106,31 @@ def attach_fraud_risk(eng, df: pd.DataFrame) -> pd.DataFrame:
 
 
 def attach_est_earnings(df: pd.DataFrame) -> pd.DataFrame:
-    """Estimated sponsored-video cost as the campaign-cost proxy.
+    """Estimated cost to sponsor one video -- the campaign-cost proxy.
 
-    A brand budgets for what an integration costs, which scales with a creator's
-    typical reach (mean_views), not the creator's AdSense income. Per-channel
-    monthly AdSense is not recoverable from a single metrics snapshot plus a thin
-    recent-video sample (it misses the evergreen back-catalog), so this uses a
-    reach-based sponsored-CPM proxy. The OLS AdSense regressor stays a methodology
-    artifact (docs/model_card.md, evaluation/baselines/earnings.json), not the
-    live brand number.
+    Integration fees are tiered by audience size and flatten at the top, so we map
+    each creator to a subscriber tier (published per-integration INR bands) and
+    position it within the band by reach-per-subscriber (an engagement proxy). The
+    (low, high) is a negotiation spread around that point, clamped to the tier band.
+    A per-view CPM model has no ceiling and overshoots large channels; this replaces
+    it. The OLS AdSense regressor stays a methodology artifact, not this live number.
     """
-    views = pd.to_numeric(df["mean_views"], errors="coerce").fillna(0.0)
-    cpm = df["niche"].map(CPM).fillna(CPM_DEFAULT).astype(float)
-    df["est_cost_inr"] = (views * cpm * SPONSORED_CPM_FACTOR / 1000.0).clip(lower=1.0)
+    if "median_views" in df.columns:
+        reach = pd.to_numeric(df["median_views"], errors="coerce")
+    else:
+        reach = pd.Series(pd.NA, index=df.index, dtype="float64")
+    mean = pd.to_numeric(df["mean_views"], errors="coerce")
+    reach = reach.fillna(mean).fillna(0.0)
+    subs = pd.to_numeric(df["subscriber_count"], errors="coerce").fillna(0.0)
+    bands = subs.apply(tier_band)
+    tier_lo = bands.apply(lambda b: b[0]).astype(float)
+    tier_hi = bands.apply(lambda b: b[1]).astype(float)
+    vps = (reach / subs.where(subs > 0)).fillna(0.5)
+    pos = ((vps - 0.05) / 0.95).clip(lower=0.0, upper=1.0)
+    point = tier_lo + pos * (tier_hi - tier_lo)
+    df["est_cost_low_inr"] = (point * 0.75).clip(lower=tier_lo, upper=tier_hi)
+    df["est_cost_high_inr"] = (point * 1.35).clip(lower=tier_lo, upper=tier_hi)
+    df["est_cost_inr"] = point
     return df
 
 

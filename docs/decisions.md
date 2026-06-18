@@ -249,3 +249,55 @@ low (LoLzZz Gaming: ~1.2M vs ~11M real monthly views) and saturating budget_fit.
 now estimates monthly uploads as 30.44/mean_inter_video_days (capped 60), falling back to
 the sampled count when cadence is unknown. Inference-only change; the simulated-cohort
 R²=0.67 is unaffected.
+
+## ADR-0019: Peer benchmark groups by niche and ranks by reach, not cluster + subscriber count
+**Status:** Accepted
+The creator profile's peer benchmark originally followed §8 ("10 closest peers in the
+same cluster by subscriber count"), but two data realities made that selection
+meaningless. Subscriber counts are stored at YouTube's 3-significant-figure display
+rounding (e.g. 1.74M), so "nearest by subs" hits walls of exact ties and returns an
+arbitrary slice; and the behavioral K-means clusters are cross-niche by construction
+(silhouette ~0.20), so a single cluster mixes Devotional/News/Music/Sports. The result
+read as random. GET /creators/{channel_id}/peers now selects creators in the same
+niche and ranks them by reach proximity, |log10(mean_views) − log10(target_mean_views)|;
+the engagement percentile and the rule-based-tip medians are likewise computed within
+the niche cohort, not the cluster. Peers are now interpretable similar-reach channels in
+the creator's own category. The behavioral archetype is unchanged and stays visible as a
+profile badge, so the clustering artifact still reads in the UI — it just no longer drives
+peer selection. Serving-only change: no model retrained and no committed metric value
+moved. The Streamlit creator page still computes its percentile within the archetype
+cluster and should be aligned to the niche basis in its restyle.
+
+## ADR-0020: Integration-rate estimate — subscriber-tier bands, not a per-view CPM
+**Status:** Accepted
+The cost proxy (est_cost_inr) began as mean_views × niche AdSense CPM × an unsourced
+SPONSORED_CPM_FACTOR of 20. Two later iterations were prototyped and rejected: a per-niche
+sponsored-CPM band off median reach, and the same with reach capped at the subscriber base.
+Both kept a *per-view* structure, which scales linearly with no ceiling — an 18.2M-subscriber
+channel at ~11.6M median views still priced one integration at ₹58L–₹1.6cr, far beyond any
+real rate card. Influencer rate cards don't price per-view; they flatten into subscriber tiers.
+The shipped model (apps/ml/pricing.py) maps each creator to a SUBSCRIBER_TIER_BAND with a
+published per-integration INR range — ₹15k–75k (<50K subs) up to ₹1.5M–5M (15M+ subs), capped
+at ₹50L — and positions the creator *within* its tier by reach-per-subscriber (views/subs as an
+engagement proxy). integration_cost_point is the in-tier point; integration_cost_range is a
+± negotiation spread clamped to the tier. Surfaced as (est_cost_low_inr, est_cost_high_inr),
+labelled "estimated sponsor cost — a proxy, not a quote." Verified: TecknoMechanics 354K →
+₹4.5–6L; Khan GS 25.9M → ₹16.4–29.5L; Palli Gram 18.2M → ₹27.5–49.5L (nothing breaks ₹50L). The
+AdSense CPM table and OLS earnings regressor are unchanged methodology artifacts; the legacy
+SPONSORED_CPM_BAND helpers are retained as deprecated. Documented in 05_CreatorPulse.md §14.
+
+## ADR-0021: Card reach = median ("typical") views; niche leaderboard floors thin/dormant catalogs
+**Status:** Accepted
+Cards displayed mean_views as "Avg. views," which for music/devotional channels reads as absurd
+next to subscriber count — a Haryanvi music label at 2.6M subs showed 112M "average" views. This
+is not bad data: verified against view_count ÷ video_count, the channel genuinely averages ~90M
+views across 13 songs (views accrue from non-subscribers over years), so the mean is simply
+unrepresentative when a few uploads go viral. Cards now show median ("typical") views — the same
+outlier-robust statistic pricing already uses — with the channel's video_count inline
+("18M · 126 videos") so high per-video reach is self-explanatory; median_views and video_count
+were added to the CreatorSummary card tuples (search, niche, peers) and the TS type. Separately,
+/niches/{niche}/creators ranked by raw reach surfaced dormant, thin back-catalogs (a 1-video
+upload, a dormant 13-song label) above active creators — useless to a brand. The leaderboard now
+applies a substance floor (video_count ≥ 10, relaxed only if it would empty the niche) and orders
+recently-active creators (videos_last_90d > 0) ahead of dormant ones, then by median reach.
+Serving/display change only; no model retrained, no committed metric value moved.
