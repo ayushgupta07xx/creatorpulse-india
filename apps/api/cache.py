@@ -1,8 +1,9 @@
 """Lightweight Redis cache for the product API, backed by Upstash.
 
-Reads ``REDIS_URL`` (an Upstash ``rediss://`` URL). If it is unset every call is a
-graceful no-op, so the API still runs locally without Redis. Redis errors are swallowed
-too — a cache outage must never break a request. JSON-serialisable payloads only.
+Reads ``REDIS_URL`` (an Upstash ``rediss://`` URL). If it is unset, or the redis
+client library is not installed, every call is a graceful no-op so the API still
+boots and serves. Redis errors are swallowed too -- a cache outage must never break
+a request. JSON-serialisable payloads only.
 """
 
 from __future__ import annotations
@@ -11,17 +12,23 @@ import json
 import os
 from typing import Any
 
-import redis
+try:
+    import redis
+except ModuleNotFoundError:  # cache is optional; the API must boot without it
+    redis = None
 
-_client: redis.Redis | None = None
+_client: Any = None
 _disabled = False
 
 
-def _get_client() -> redis.Redis | None:
+def _get_client() -> Any:
     global _client, _disabled
     if _disabled:
         return None
     if _client is None:
+        if redis is None:
+            _disabled = True
+            return None
         url = os.environ.get("REDIS_URL")
         if not url:
             _disabled = True
@@ -39,7 +46,7 @@ def cache_get(key: str) -> Any | None:
         return None
     try:
         raw = client.get(key)
-    except redis.RedisError:
+    except Exception:
         return None
     return json.loads(raw) if raw else None
 
@@ -50,5 +57,5 @@ def cache_set(key: str, value: Any, ttl_seconds: int) -> None:
         return
     try:
         client.set(key, json.dumps(value, default=str), ex=ttl_seconds)
-    except redis.RedisError:
-        pass
+    except Exception:
+        return
