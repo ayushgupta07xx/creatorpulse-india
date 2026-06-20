@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   getCreator,
   getCreatorPeers,
@@ -77,6 +78,7 @@ type Status = "loading" | "done" | "error";
 
 export default function CreatorProfile({ params }: { params: { id: string } }) {
   const id = params.id;
+  const router = useRouter();
   const [status, setStatus] = useState<Status>("loading");
   const [err, setErr] = useState("");
   const [c, setC] = useState<CreatorDetail | null>(null);
@@ -124,9 +126,13 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
   if (status === "error" || !c) {
     return (
       <div className="mx-auto max-w-wrap px-6 py-12">
-        <Link href="/creators" className="text-sm text-muted hover:text-ink">
-          ← Back to search
-        </Link>
+        <button
+          onClick={() => router.back()}
+          aria-label="Back"
+          className="mt-2 inline-block text-lg text-muted transition-colors hover:text-ink"
+        >
+          ←
+        </button>
         <p className="mt-6 text-risk-high">
           Couldn&apos;t load this creator ({err || "not indexed"}).
         </p>
@@ -173,9 +179,13 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
 
   return (
     <div className="mx-auto max-w-wrap px-6 py-12">
-      <Link href="/creators" className="text-sm text-muted transition-colors hover:text-ink">
-        ← Back to search
-      </Link>
+      <button
+        onClick={() => router.back()}
+        aria-label="Back"
+        className="mt-2 inline-block text-lg text-muted transition-colors hover:text-ink"
+      >
+        ←
+      </button>
 
       {/* header */}
       <Reveal>
