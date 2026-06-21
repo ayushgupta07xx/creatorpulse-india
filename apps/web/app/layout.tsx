@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import PulseMark from "@/components/PulseMark";
+import ChatWidget from "@/components/ChatWidget";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -68,6 +69,7 @@ export default function RootLayout({
             Data API
           </div>
         </footer>
+        <ChatWidget />
       </body>
     </html>
   );

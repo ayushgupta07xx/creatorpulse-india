@@ -152,3 +152,16 @@ export const getNicheCreators = (niche: string, k = 24) =>
   getJSON<CreatorSummary[]>(
     `/niches/${encodeURIComponent(niche)}/creators?k=${k}`,
   );
+
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// Grounded product assistant (see apps/api/chatbot.py). Returns { reply }.
+export const chat = (messages: ChatMessage[]) =>
+  getJSON<{ reply: string }>("/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages }),
+  });

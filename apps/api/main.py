@@ -29,6 +29,7 @@ from sqlalchemy import text
 
 import apps.ml.match as match_engine
 from apps.api.cache import cache_get, cache_set
+from apps.api.chatbot import GroqError, groq_chat, prepare_messages
 from apps.ingest import quota_tracker
 from apps.ml.pricing import integration_cost_point
 
@@ -385,3 +386,37 @@ def post_match(req: MatchRequest) -> list[dict]:
     ]
     out = out.merge(_display()[disp_cols], on="channel_id", how="left")
     return _records(out)
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+
+
+@app.post("/chat")
+def post_chat(req: ChatRequest) -> dict:
+    """Grounded product-help assistant (see apps/api/chatbot.py). Sync on purpose
+    so FastAPI runs the upstream call in a threadpool."""
+    msgs = prepare_messages([m.model_dump() for m in req.messages])
+    if not msgs:
+        raise HTTPException(status_code=400, detail="Send a question to the assistant.")
+    try:
+        reply = groq_chat(msgs)
+    except GroqError as e:
+        reason = str(e)
+        if reason == "unconfigured":
+            raise HTTPException(
+                status_code=503, detail="The assistant isn't set up right now."
+            ) from e
+        if reason == "rate_limited":
+            raise HTTPException(
+                status_code=429, detail="The assistant is busy — try again shortly."
+            ) from e
+        raise HTTPException(
+            status_code=502, detail="The assistant is temporarily unavailable."
+        ) from e
+    return {"reply": reply}

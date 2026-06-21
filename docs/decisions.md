@@ -342,3 +342,19 @@ Freed weight moves onto the signals that genuinely vary across creators (semanti
 - Variant A (pure cosine, `rerank=false`) is unchanged. The `match_rerank_v2` A/B sim (`analysis/ab_match_rerank.py`) injects its own effect size and does not read these weights, so the simulated 23% / 96% figure and the PA bullet are unaffected.
 - §13 formula in `05_CreatorPulse.md` updated to the new weights.
 - ADR-0017 (niche as a *hard Stage-1 filter*) is a separate mechanism — unchanged.
+
+## ADR-0024: Product-help assistant — Groq LLM, knowledge-grounded (not RAG), distinct from AskBharat
+
+**Status:** Accepted.
+
+**Context.** The product needs an on-site assistant to explain what CreatorPulse is, how its models work, and what its numbers mean. Two risks: (1) an LLM that free-generates will invent metrics or oversell — fatal for a product whose credibility rests on honest, simulated-labeled figures; (2) a data-Q&A assistant would overlap with AskBharat (conversational analytics on public data), a separate project.
+
+**Decision.**
+- LLM: Groq `llama-3.3-70b-versatile` (portfolio-canonical; generous free tier; free-forever). Adds Groq to the stack but **no new Python dependency** — the call goes through `requests` (already core), so the curated Space build is untouched.
+- Grounding: a single curated system-prompt knowledge base (Canonical Numbers + LIVE/SIMULATED labels + known limitations), **not RAG** — the knowledge is small and bounded, so a vector store would be over-engineering. Hard guardrails: never invent a number, label simulated/heuristic figures as such, surface limitations, decline off-topic/advice, say "I don't know" over fabricating.
+- Scope: a **product guide**, explicitly NOT analytics over the dataset — that lane is AskBharat's. Endpoint `POST /chat`; sync handler so FastAPI threadpools the blocking call; graceful 503/429/502 on config/rate-limit/upstream failure.
+- Config: `GROQ_API_KEY` as a Space Secret; `GROQ_MODEL`/`GROQ_JUDGE_MODEL` as Space Variables; same in local `.env` (gitignored).
+
+**Consequences.**
+- Verified locally: the bot states the 0.83 fraud F1 is a simulated cohort (not real fraud), declines to invent a specific creator's stats, and refuses off-topic advice.
+- A follow-up ADR will cover **bounded tool-calling** (letting the bot fetch real data from the product's own endpoints), which extends — but must not breach — the "product guide, not open analytics" boundary set here.
