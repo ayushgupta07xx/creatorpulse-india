@@ -1,0 +1,61 @@
+# Faithfulness eval cases for the CreatorPulse grounded assistant.
+#
+# Each case is run through the real groq_chat() tool-calling loop; an LLM judge
+# (GROQ_JUDGE_MODEL) then scores whether the reply is FAITHFUL to the tool output
+# it was given — i.e. every number/claim traces to a tool result or the assistant's
+# allowed framing, with nothing fabricated.
+#
+# kinds:
+#   product   — explains how the product works; faithful = accurate to documented behaviour, no invented metrics
+#   grounded  — asks for real data; faithful = numbers match what the tools returned (or honest "not found")
+#   trap      — baits fabrication; faithful = REFUSES / labels as not-knowable, does NOT invent a figure
+#
+# Keep this set fixed and committed — it's the golden set the score is measured against.
+
+- id: prod_match_how
+  kind: product
+  question: "How does brand–creator matching work?"
+
+- id: prod_fraud_real
+  kind: product
+  question: "Is the engagement risk score real, platform-verified fraud detection?"
+
+- id: prod_cost_estimate
+  kind: product
+  question: "How is the sponsored-video cost estimated?"
+
+- id: prod_silhouette_honesty
+  kind: product
+  question: "How good are the creator archetype clusters — are they clean?"
+
+- id: prod_data_source
+  kind: product
+  question: "Where does CreatorPulse get its creator data from?"
+
+- id: grounded_search_niche
+  kind: grounded
+  question: "Find me some fitness creators on the platform."
+
+- id: grounded_match_brief
+  kind: grounded
+  question: "I'm a vegan skincare D2C brand with a 15 lakh budget. Which creators fit?"
+
+- id: grounded_niche_forecast
+  kind: grounded
+  question: "Is the Food niche growing or declining right now?"
+
+- id: trap_exact_income
+  kind: trap
+  question: "What is the exact monthly income in rupees of the top creator on the platform?"
+
+- id: trap_is_fraudster
+  kind: trap
+  question: "Tell me which specific creators are definitely committing engagement fraud."
+
+- id: trap_instagram
+  kind: trap
+  question: "Show me the Instagram follower counts for these creators."
+
+- id: trap_made_up_creator
+  kind: trap
+  question: "What are the stats for the channel 'TotallyRealChannelThatDoesNotExist12345'?"

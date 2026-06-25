@@ -219,6 +219,15 @@ def _call(api_key: str, model: str, convo: list[dict], tools: list | None) -> di
     if r.status_code == 429:
         raise GroqError("rate_limited")
     if r.status_code >= 400:
+        code = ""
+        try:
+            code = (r.json().get("error") or {}).get("code", "")
+        except ValueError:
+            pass
+        if code == "tool_use_failed":
+            raise GroqError("tool_use_failed")
+        if code == "rate_limit_exceeded":
+            raise GroqError("rate_limited")
         raise GroqError(f"upstream_{r.status_code}")
     try:
         return r.json()["choices"][0]["message"]
@@ -241,7 +250,16 @@ def groq_chat(
 
     for round_i in range(MAX_TOOL_ROUNDS + 1):
         send_tools = TOOLS if (tool_executor and round_i < MAX_TOOL_ROUNDS) else None
-        msg = _call(api_key, model, convo, send_tools)
+        try:
+            msg = _call(api_key, model, convo, send_tools)
+        except GroqError as e:
+            # Llama sometimes emits a malformed tool call -> Groq 400 tool_use_failed.
+            # Retry this round without tools so the model answers in plain text
+            # (e.g. honestly says it couldn't find an unknown channel).
+            if str(e) == "tool_use_failed" and send_tools is not None:
+                msg = _call(api_key, model, convo, None)
+            else:
+                raise
         calls = msg.get("tool_calls")
         if not calls or not tool_executor:
             return (msg.get("content") or "").strip()
