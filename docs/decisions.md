@@ -417,3 +417,15 @@ explainer (`explain_results()`).
 **Alternatives rejected:** Adding posthog-js to Next would split ingestion across two paths and require a `NEXT_PUBLIC_POSTHOG_KEY` baked at Vercel build time — larger surface, no benefit. True server-side SSE streaming was deferred (the `*.hf.space` edge proxy likely buffers it, and the ≤2 tool-round loop blocks first-token anyway); the chat UI uses client-side progressive reveal instead.
 
 **Consequences:** Single ingestion path (all events posthog-python). Feed-verified end-to-end (curl smoke + real widget click both land in PostHog Activity). The widget's pre-existing `chat_opened` / `chat_message_sent` `track()` calls remain dead no-ops — the frontend has no posthog-js — which is acceptable: feedback is the event that matters here.
+
+## ADR-0028 — Faithfulness eval harness for the grounded assistant
+
+**Status:** Accepted (Day 14)
+
+**Context:** The assistant answers from real tool output and must not fabricate numbers, name definite fraudsters, claim Instagram data, or invent creators. Nothing measured whether it actually holds that line. The model-eval gate (ADR-pending check_regression.py) covers the fraud classifier's F1, not the assistant.
+
+**Decision:** A resumable harness (`evaluation/faithfulness_eval.py`) runs a fixed, committed golden set (`evaluation/faithfulness_cases.yaml`, 12 cases across product-explanation / grounded-data / fabrication-trap kinds) through the real `groq_chat()` tool-calling loop, teeing each tool call+result, then scores each reply with an LLM judge (`GROQ_JUDGE_MODEL`, llama-3.1-8b-instant) for faithfulness to that tool output — 0–1 score + verdict + rationale, persisted to `faithfulness_results.jsonl` (re-runs skip scored ids, surviving free-tier 429s). Product-mechanics cases are judged against a documented PRODUCT_FACTS reference (they call no tool). Results are committed as the artifact of record.
+
+**Framing (important for honesty):** This is a **guardrail smoke-test over a fixed golden set**, not a statistical accuracy metric. A high mean means the assistant refuses/grounds correctly on these known cases — it is not a claim of "100% faithful in general." Résumé/docs language is "faithfulness eval harness," never a faithfulness percentage.
+
+**Consequences:** Surfaced and fixed a real production bug — Groq `tool_use_failed` 400 on malformed tool calls (unknown/typo'd channels) now recovers by retrying without tools instead of crashing (see chatbot.py). Two of twelve cases were scored on the 8b answer model (70b daily-token cap hit mid-session); those rows are stamped `answer_model` in the jsonl. Harness inter-case sleep raised to 20s for free-tier TPM headroom; the eval is offline (not in the CI merge gate).
