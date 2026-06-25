@@ -75,7 +75,9 @@ PRODUCT_FACTS = (
     "A rough proxy, not a quote. (NOT subscriber-count based.)\n"
     "- Archetype clusters: K-means k=8 + DBSCAN; real composite silhouette ~0.20 (modest); "
     "clusters are behavioural and don't cleanly separate broad creator text. Honest about this.\n"
-    "- Data source: official YouTube Data API v3 only; Instagram is explicitly out of scope (v2). "
+    "- Data source: channel stats come from the official YouTube Data API v3; the channel "
+    "seed list comes from an open Kaggle dataset (ODC-BY, credited in LEGAL.md). No scraping. "
+    "Instagram is out of scope (v2). "
     "Creator counts/niches read live from the product DB.\n"
 )
 
@@ -198,7 +200,7 @@ def main() -> int:
             out.write(json.dumps(row, ensure_ascii=False) + "\n")
             out.flush()
             print(f"  {cid:24s} [{kind:8s}] score={judged['score']:.2f} {judged['verdict']}")
-            time.sleep(1)  # gentle on the free-tier RPM
+            time.sleep(20)  # free-tier is 6k TPM on the 8b judge; space cases out
 
     # Aggregate over all committed results (resumed + this run).
     rows = [
