@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { chat, type ChatMessage } from "@/lib/api";
+import { useEffect, useRef, useState, type ComponentPropsWithoutRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { chat, sendFeedback, type ChatMessage } from "@/lib/api";
 import { usePathname } from "next/navigation";
 
 const GREETING: ChatMessage = {
@@ -16,13 +18,42 @@ const SUGGESTIONS = [
   "How is sponsor cost estimated?",
 ];
 
-function track(event: string) {
+// posthog is loaded globally (window.posthog) by the app shell; this is a no-op if absent.
+// NOTE: a silent no-op means "button clicked" does NOT prove "event landed" — verify at the
+// PostHog live feed + the isolated CLI smoke (scripts/posthog_smoke.py), never app-appears-to-work.
+function track(event: string, props?: Record<string, unknown>) {
   try {
-    (window as unknown as { posthog?: { capture?: (e: string) => void } }).posthog?.capture?.(event);
+    (
+      window as unknown as {
+        posthog?: { capture?: (e: string, p?: Record<string, unknown>) => void };
+      }
+    ).posthog?.capture?.(event, props);
   } catch {
     /* posthog is optional — no-op if absent */
   }
 }
+
+// Compact markdown renderers tuned for the dark chat bubble (no @tailwindcss/typography needed).
+const MD = {
+  p: (p: ComponentPropsWithoutRef<"p">) => <p className="mb-2 last:mb-0" {...p} />,
+  ul: (p: ComponentPropsWithoutRef<"ul">) => (
+    <ul className="mb-2 list-disc space-y-1 pl-4 last:mb-0" {...p} />
+  ),
+  ol: (p: ComponentPropsWithoutRef<"ol">) => (
+    <ol className="mb-2 list-decimal space-y-1 pl-4 last:mb-0" {...p} />
+  ),
+  li: (p: ComponentPropsWithoutRef<"li">) => <li className="leading-snug" {...p} />,
+  strong: (p: ComponentPropsWithoutRef<"strong">) => (
+    <strong className="font-semibold text-ink" {...p} />
+  ),
+  em: (p: ComponentPropsWithoutRef<"em">) => <em className="italic" {...p} />,
+  a: (p: ComponentPropsWithoutRef<"a">) => (
+    <a className="text-violet underline" target="_blank" rel="noreferrer" {...p} />
+  ),
+  code: (p: ComponentPropsWithoutRef<"code">) => (
+    <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-xs" {...p} />
+  ),
+};
 
 function chatContext(pathname: string | null): Record<string, string> | undefined {
   if (!pathname) return undefined;
@@ -40,11 +71,54 @@ export default function ChatWidget() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Client-side progressive reveal of the (already-buffered) assistant reply.
+  // The server stays a single round-trip returning {reply}; this only animates display.
+  const [stream, setStream] = useState<{ idx: number; shown: number } | null>(null);
+  const [feedback, setFeedback] = useState<Record<number, "up" | "down">>({});
+  const distinctId = useRef<string>("");
+  useEffect(() => {
+    // Stable anonymous id per browser, so feedback rows aren't all one person.
+    try {
+      let id = localStorage.getItem("cp_distinct_id");
+      if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem("cp_distinct_id", id);
+      }
+      distinctId.current = id;
+    } catch {
+      distinctId.current = "web-anon";
+    }
+  }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, loading, open]);
+  }, [messages, loading, open, stream]);
+
+  // Drive the typewriter reveal: bump `shown` until it reaches the full reply length.
+  useEffect(() => {
+    if (!stream) return;
+    const full = messages[stream.idx]?.content ?? "";
+    if (stream.shown >= full.length) {
+      setStream(null);
+      return;
+    }
+    const step = Math.max(2, Math.ceil(full.length / 120)); // ~120 ticks regardless of length
+    const id = setTimeout(() => {
+      setStream((s) => (s ? { ...s, shown: Math.min(full.length, s.shown + step) } : s));
+    }, 24);
+    return () => clearTimeout(id);
+  }, [stream, messages]);
+
+  function rate(i: number, rating: "up" | "down") {
+    if (feedback[i]) return;
+    setFeedback((f) => ({ ...f, [i]: rating }));
+    void sendFeedback(rating, pathname ?? "unknown", distinctId.current || "web-anon").catch(
+      () => {
+        /* feedback is best-effort — never surface an error for a thumb click */
+      },
+    );
+  }
 
   async function send(text: string) {
     const q = text.trim();
@@ -59,7 +133,14 @@ export default function ChatWidget() {
       // drop the canned greeting; send only real turns (ends with the user's question)
       const history = next.filter((m, i) => !(i === 0 && m === GREETING));
       const { reply } = await chat(history, chatContext(pathname));
+      const assistantIdx = next.length; // assistant message lands at this index
       setMessages((m) => [...m, { role: "assistant", content: reply }]);
+      const reduceMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (!reduceMotion && reply.length > 0) {
+        setStream({ idx: assistantIdx, shown: 0 });
+      }
     } catch (e) {
       setError(
         e instanceof Error && e.message.includes("429")
@@ -96,23 +177,73 @@ export default function ChatWidget() {
         <div className="fixed bottom-24 right-5 z-50 flex h-[32rem] max-h-[calc(100vh-7rem)] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl">
           <div className="border-b border-white/10 px-4 py-3">
             <p className="font-display text-sm font-bold text-ink">CreatorPulse assistant</p>
-            <p className="text-xs text-muted">Grounded in the product — it won&apos;t make up numbers.</p>
           </div>
 
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-            {messages.map((m, i) => (
-              <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
-                <div
-                  className={
-                    m.role === "user"
-                      ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-violet/20 px-3 py-2 text-sm text-ink"
-                      : "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-white/5 px-3 py-2 text-sm text-ink"
-                  }
-                >
-                  {m.content}
+            {messages.map((m, i) => {
+              const isUser = m.role === "user";
+              const isStreaming = stream?.idx === i;
+              const shownText = isStreaming ? m.content.slice(0, stream.shown) : m.content;
+              const showFeedback = !isUser && i > 0 && !isStreaming;
+              return (
+                <div key={i} className={isUser ? "flex justify-end" : "flex flex-col items-start"}>
+                  <div
+                    className={
+                      isUser
+                        ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-violet/20 px-3 py-2 text-sm text-ink"
+                        : "max-w-[85%] rounded-2xl rounded-bl-sm bg-white/5 px-3 py-2 text-sm text-ink"
+                    }
+                  >
+                    {isUser ? (
+                      m.content
+                    ) : isStreaming ? (
+                      <span className="whitespace-pre-wrap">
+                        {shownText}
+                        <span className="ml-0.5 animate-pulse text-muted">▍</span>
+                      </span>
+                    ) : (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD}>
+                        {shownText}
+                      </ReactMarkdown>
+                    )}
+                  </div>
+                  {showFeedback && (
+                    <div className="mt-1 flex gap-1 pl-1">
+                      <button
+                        onClick={() => rate(i, "up")}
+                        disabled={!!feedback[i]}
+                        aria-label="Helpful"
+                        className={
+                          feedback[i] === "up"
+                            ? "text-violet"
+                            : "text-muted transition-colors hover:text-ink disabled:opacity-40"
+                        }
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M7 10v12" />
+                          <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => rate(i, "down")}
+                        disabled={!!feedback[i]}
+                        aria-label="Not helpful"
+                        className={
+                          feedback[i] === "down"
+                            ? "text-risk-high"
+                            : "text-muted transition-colors hover:text-ink disabled:opacity-40"
+                        }
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 14V2" />
+                          <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {loading && (
               <div className="flex justify-start">
                 <div className="rounded-2xl rounded-bl-sm bg-white/5 px-3 py-2 text-sm text-muted">…thinking</div>

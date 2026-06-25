@@ -555,3 +555,50 @@ def post_chat(req: ChatRequest) -> dict:
             detail="The assistant is temporarily unavailable.",
         ) from e
     return {"reply": reply}
+
+
+# --- Feedback capture (PostHog, server-side) -------------------------------
+# Same posthog-python contract as the Streamlit app: no-ops cleanly without
+# POSTHOG_API_KEY, so the endpoint is safe offline and on a fresh deploy.
+def _posthog():
+    """Return the configured posthog module once, or None if no key."""
+    global _PH
+    try:
+        return _PH
+    except NameError:
+        pass
+    key = os.environ.get("POSTHOG_API_KEY")
+    if not key:
+        _PH = None
+        return None
+    import posthog
+
+    posthog.api_key = key
+    posthog.host = os.environ.get("POSTHOG_HOST") or "https://us.i.posthog.com"
+    posthog.debug = False
+    _PH = posthog
+    return _PH
+
+
+class FeedbackRequest(BaseModel):
+    rating: str  # "up" | "down"
+    page: str | None = None
+    distinct_id: str | None = None
+
+
+@app.post("/feedback")
+def post_feedback(req: FeedbackRequest) -> dict:
+    rating = req.rating.strip().lower()
+    if rating not in {"up", "down"}:
+        raise HTTPException(status_code=400, detail="rating must be 'up' or 'down'.")
+    ph = _posthog()
+    if ph is not None:
+        try:
+            ph.capture(
+                "chat_feedback",
+                distinct_id=req.distinct_id or "web-anon",
+                properties={"rating": rating, "page": req.page or "unknown", "source": "web_chat"},
+            )
+        except Exception:  # noqa: BLE001 — analytics must never break the request
+            pass
+    return {"ok": True}

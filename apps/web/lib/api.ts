@@ -171,3 +171,13 @@ export const chat = (messages: ChatMessage[], context?: Record<string, unknown>)
     method: "POST",
     body: JSON.stringify(context ? { messages, context } : { messages }),
   });
+
+export const sendFeedback = (
+  rating: "up" | "down",
+  page: string,
+  distinctId: string,
+): Promise<{ ok: boolean }> =>
+  getJSON<{ ok: boolean }>("/feedback", {
+    method: "POST",
+    body: JSON.stringify({ rating, page, distinct_id: distinctId }),
+  });
