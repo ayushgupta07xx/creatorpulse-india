@@ -429,3 +429,13 @@ explainer (`explain_results()`).
 **Framing (important for honesty):** This is a **guardrail smoke-test over a fixed golden set**, not a statistical accuracy metric. A high mean means the assistant refuses/grounds correctly on these known cases — it is not a claim of "100% faithful in general." Résumé/docs language is "faithfulness eval harness," never a faithfulness percentage.
 
 **Consequences:** Surfaced and fixed a real production bug — Groq `tool_use_failed` 400 on malformed tool calls (unknown/typo'd channels) now recovers by retrying without tools instead of crashing (see chatbot.py). Two of twelve cases were scored on the 8b answer model (70b daily-token cap hit mid-session); those rows are stamped `answer_model` in the jsonl. Harness inter-case sleep raised to 20s for free-tier TPM headroom; the eval is offline (not in the CI merge gate).
+
+## ADR-0029 — Corporate/brand-owned channel soft-suppression
+
+**Status:** Accepted (Day 14)
+
+**Context:** Brand-owned channels (Airtel, Jio, Myntra, Paytm, Zomato…) sit in the creator corpus and could surface when a brand searches for individual creator partners. The §22 limitation flagged this as a known mis-tag. Investigation showed brand channels have **no separating behavioral signature** — their subscriber/video/view distributions overlap real creators entirely (e.g. JioHotstar 3,984 videos/58M subs vs Zomato 501/579K). The only reliable signal is channel identity (title/URL).
+
+**Decision:** Identity-based registry suppression, not an ML classifier (the data doesn't support one). `data/brand_channels.csv` is the committed source of record — tokens seeded from `known_brands.csv` brand names plus telecom/marketplace corporates observed in the corpus. `match.py` flags `is_brand_channel` via word-boundary token match against title+custom_url, and applies a soft Stage-2 penalty (`W_BRAND_PENALTY = 0.15`) — demote, never delete. The flag rides through the API; the brand UI shows a "Corporate" chip. `"idea"` is deliberately excluded (false-positives real creators: "DP art idea", "Shopping IDEA").
+
+**Consequences:** Real creators now occupy the full top-20 on every creator brief (verified). Because brand channels also embed weakly against creator briefs, they rarely rank high enough to be visible even before the penalty (Myntra ranks ~134/135 on a literal "Myntra" brief) — so the penalty is a *guarantee* (a corporate never outranks a comparable real creator) more than a frequent tiebreaker, and the UI chip, while correct, fires rarely in normal use. This is **rule-based suppression**, never described as a model. Registry is hand-extensible; no behavioral detection claimed.
