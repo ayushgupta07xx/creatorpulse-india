@@ -93,7 +93,7 @@ def _display() -> pd.DataFrame:
     eng = match_engine.get_engine()
     dim = pd.read_sql(
         text(
-            "select distinct on (c.channel_id) c.channel_id, c.title, "
+            "select distinct on (c.channel_id) c.channel_id, "
             "s.thumbnail_url from marts.dim_channel c "
             "left join staging.channels s on s.channel_id = c.channel_id "
             "order by c.channel_id, c.effective_from desc"

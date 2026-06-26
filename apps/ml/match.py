@@ -203,6 +203,20 @@ def get_catalog() -> tuple[pd.DataFrame, dict]:
     return creators, centroids
 
 
+@lru_cache(maxsize=1)
+def _common_words() -> frozenset[str]:
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "data" / "common_words.txt"
+    if not path.exists():
+        return frozenset()
+    return frozenset(
+        ln.strip().lower()
+        for ln in path.read_text(encoding="utf-8").splitlines()
+        if ln.strip() and not ln.startswith("#")
+    )
+
+
 def _validate_brief(brief: str) -> str | None:
     """Return a reason string if the brief isn't real language, else None.
 
@@ -214,19 +228,27 @@ def _validate_brief(brief: str) -> str | None:
     """
     import re
 
-    text = (brief or "").strip().lower()
-    if len(text) < 3:
+    raw = (brief or "").strip()
+    if len(raw) < 3:
         return "too_short"
-    tokens = re.findall(r"[a-z0-9]+", text)
+    raw_tokens = re.findall(r"[A-Za-z0-9]+", raw)
+    tokens = [t.lower() for t in raw_tokens]
     if not tokens:
         return "no_words"
     if max((len(t) for t in tokens), default=0) >= 16:
         return "gibberish_token"
-    alpha = [c for c in text if c.isalpha()]
+    alpha = [c for c in raw.lower() if c.isalpha()]
     if len(alpha) >= 6:
         vowels = sum(c in "aeiou" for c in alpha)
         if vowels / len(alpha) < 0.20:
             return "low_vowel_ratio"
+    vocab = _common_words()
+    brands = set(_brand_tokens()) if "_brand_tokens" in globals() else set()
+    has_word = bool(vocab) and any(t in vocab for t in tokens)
+    has_cap = any(t[:1].isupper() for t in raw_tokens)
+    has_brand = any(t in brands for t in tokens)
+    if vocab and not (has_word or has_cap or has_brand):
+        return "no_known_words"
     return None
 
 
