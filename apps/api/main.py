@@ -393,7 +393,9 @@ def _match_records(req: MatchRequest, funnel: dict | None = None) -> list[dict]:
 def post_match(req: MatchRequest) -> dict:
     funnel: dict = {}
     results = _match_records(req, funnel=funnel)
-    explainer = query_expand.explain_results(funnel) if not results else None
+    explainer = (
+        (funnel.get("explainer") or query_expand.explain_results(funnel)) if not results else None
+    )
     return {
         "results": results,
         "explainer": explainer,
@@ -486,7 +488,9 @@ def _chat_tool_executor(name: str, args: dict) -> str:
             rows = _match_records(req, funnel=funnel)[:5]
             payload: dict = {"results": [_match_brief(r) for r in rows]}
             if not rows:
-                payload["explainer"] = query_expand.explain_results(funnel)
+                payload["explainer"] = funnel.get("explainer") or query_expand.explain_results(
+                    funnel
+                )
             return json.dumps(payload)
         if name == "niche_demand":
             niche = str(args.get("niche", "")).strip()
