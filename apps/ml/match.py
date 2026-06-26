@@ -203,6 +203,39 @@ def get_catalog() -> tuple[pd.DataFrame, dict]:
     return creators, centroids
 
 
+def _validate_brief(brief: str) -> str | None:
+    """Return a reason string if the brief isn't real language, else None.
+
+    Catches keysmash / nonsense so the matcher doesn't return confident matches
+    for garbage. Three cheap, deterministic signals (no model):
+      - any single token >= 16 chars (no human writes a 20-char unbroken word)
+      - vowel ratio < 0.20 over alpha chars (>=6 alpha) -> consonant keysmash
+      - zero tokens appear in the bundled word list -> not recognizable language
+    """
+    import re
+
+    text = (brief or "").strip().lower()
+    if len(text) < 3:
+        return "too_short"
+    tokens = re.findall(r"[a-z0-9]+", text)
+    if not tokens:
+        return "no_words"
+    if max((len(t) for t in tokens), default=0) >= 16:
+        return "gibberish_token"
+    alpha = [c for c in text if c.isalpha()]
+    if len(alpha) >= 6:
+        vowels = sum(c in "aeiou" for c in alpha)
+        if vowels / len(alpha) < 0.20:
+            return "low_vowel_ratio"
+    return None
+
+
+_BRIEF_REJECT_MSG = (
+    "That doesn't read like a campaign brief. Describe your product, audience, "
+    'or goal — e.g. "vegan skincare for Gen-Z" or "fintech app for students".'
+)
+
+
 def match(
     brief: str,
     budget_lakh: float = 15.0,
@@ -215,6 +248,27 @@ def match(
     funnel: dict | None = None,
 ) -> pd.DataFrame:
     eng = get_engine()
+    reject = _validate_brief(brief)
+    if reject is not None:
+        if funnel is not None:
+            funnel["rejected"] = reject
+            funnel["explainer"] = _BRIEF_REJECT_MSG
+        return pd.DataFrame(
+            columns=[
+                "channel_id",
+                "niche",
+                "archetype",
+                "cosine",
+                "niche_overlap",
+                "fraud_risk",
+                "budget_fit",
+                "reach_fit",
+                "est_cost_inr",
+                "final_score",
+                "title",
+                "is_brand_channel",
+            ]
+        )
     creators, centroids = get_catalog()
 
     encoder = get_encoder()
