@@ -235,6 +235,17 @@ def _validate_brief(brief: str) -> str | None:
     tokens = [t.lower() for t in raw_tokens]
     if not tokens:
         return "no_words"
+    # Exemptions first: a real word, a capitalized token (brand/proper noun),
+    # or a known brand makes the brief valid regardless of the heuristics below.
+    vocab = _common_words()
+    brands = set(_brand_tokens()) if "_brand_tokens" in globals() else set()
+    if any(t in vocab for t in tokens):
+        return None
+    if any(t[:1].isupper() for t in raw_tokens):
+        return None
+    if any(t in brands for t in tokens):
+        return None
+    # Otherwise apply gibberish heuristics.
     if max((len(t) for t in tokens), default=0) >= 16:
         return "gibberish_token"
     alpha = [c for c in raw.lower() if c.isalpha()]
@@ -242,14 +253,7 @@ def _validate_brief(brief: str) -> str | None:
         vowels = sum(c in "aeiou" for c in alpha)
         if vowels / len(alpha) < 0.20:
             return "low_vowel_ratio"
-    vocab = _common_words()
-    brands = set(_brand_tokens()) if "_brand_tokens" in globals() else set()
-    has_word = bool(vocab) and any(t in vocab for t in tokens)
-    has_cap = any(t[:1].isupper() for t in raw_tokens)
-    has_brand = any(t in brands for t in tokens)
-    if vocab and not (has_word or has_cap or has_brand):
-        return "no_known_words"
-    return None
+    return "no_known_words"
 
 
 _BRIEF_REJECT_MSG = (

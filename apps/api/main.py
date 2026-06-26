@@ -382,7 +382,7 @@ def _match_records(req: MatchRequest, funnel: dict | None = None) -> list[dict]:
     )
     disp_cols = [
         c
-        for c in ("channel_id", "title", "thumbnail_url", "subscriber_count", "mean_views")
+        for c in ("channel_id", "thumbnail_url", "subscriber_count", "mean_views")
         if c in _display().columns
     ]
     out = out.merge(_display()[disp_cols], on="channel_id", how="left")
