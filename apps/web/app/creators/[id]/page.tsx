@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CreatorDetailSkeleton from "@/components/CreatorDetailSkeleton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -116,11 +117,7 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
   }, [id]);
 
   if (status === "loading") {
-    return (
-      <div className="mx-auto max-w-wrap px-6 py-12">
-        <p className="text-muted">Loading creator…</p>
-      </div>
-    );
+    return <CreatorDetailSkeleton />;
   }
 
   if (status === "error" || !c) {

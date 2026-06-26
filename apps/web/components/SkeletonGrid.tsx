@@ -63,19 +63,38 @@ function BrandResultCardSkeleton() {
   );
 }
 
+function NicheCardSkeleton() {
+  return (
+    <div className="relative h-full overflow-hidden rounded-2xl border border-white/10 bg-surface p-5">
+      <span className="absolute inset-y-0 left-0 w-1 bg-white/10" aria-hidden />
+      <div className="space-y-3">
+        <Block className="h-3 w-16" />
+        <Block className="h-6 w-2/3" />
+        <Block className="h-3 w-full" />
+        <Block className="h-3 w-1/2" />
+      </div>
+    </div>
+  );
+}
+
 /** Grid of skeleton cards. variant picks card shape + column count to match the real grid. */
 export default function SkeletonGrid({
   variant,
   count = 4,
 }: {
-  variant: "brand" | "creator";
+  variant: "brand" | "creator" | "niche";
   count?: number;
 }) {
   const cols =
     variant === "brand"
       ? "grid-cols-1 lg:grid-cols-2"
       : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
-  const Card = variant === "brand" ? BrandResultCardSkeleton : CreatorCardSkeleton;
+  const Card =
+    variant === "brand"
+      ? BrandResultCardSkeleton
+      : variant === "niche"
+        ? NicheCardSkeleton
+        : CreatorCardSkeleton;
   return (
     <div className={`mt-6 grid gap-4 ${cols}`} aria-busy="true" aria-live="polite">
       {Array.from({ length: count }).map((_, i) => (

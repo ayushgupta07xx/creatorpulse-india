@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import SkeletonGrid from "@/components/SkeletonGrid";
 import Link from "next/link";
 import { getNiches, type NicheSummary } from "@/lib/api";
 import { formatCompact } from "@/lib/format";
@@ -69,7 +70,7 @@ export default function NichesPage() {
           Couldn&apos;t load niches. The API may be waking up — try again shortly.
         </p>
       )}
-      {!niches && !failed && <p className="mt-8 text-muted">Loading niches…</p>}
+      {!niches && !failed && <SkeletonGrid variant="niche" count={6} />}
 
       {niches && (
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

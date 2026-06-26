@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import SkeletonGrid from "@/components/SkeletonGrid";
 import Link from "next/link";
 import {
   getNiches,
@@ -131,7 +132,7 @@ export default function NicheDetail({ params }: { params: { niche: string } }) {
             Ranked by typical reach (median views); active creators first.
           </p>
         </Reveal>
-        {!creators && !failed && <p className="mt-6 text-muted">Loading creators…</p>}
+        {!creators && !failed && <SkeletonGrid variant="creator" count={6} />}
         {creators && creators.length === 0 && (
           <p className="mt-6 text-muted">No creators indexed in this niche.</p>
         )}
