@@ -439,3 +439,23 @@ explainer (`explain_results()`).
 **Decision:** Identity-based registry suppression, not an ML classifier (the data doesn't support one). `data/brand_channels.csv` is the committed source of record — tokens seeded from `known_brands.csv` brand names plus telecom/marketplace corporates observed in the corpus. `match.py` flags `is_brand_channel` via word-boundary token match against title+custom_url, and applies a soft Stage-2 penalty (`W_BRAND_PENALTY = 0.15`) — demote, never delete. The flag rides through the API; the brand UI shows a "Corporate" chip. `"idea"` is deliberately excluded (false-positives real creators: "DP art idea", "Shopping IDEA").
 
 **Consequences:** Real creators now occupy the full top-20 on every creator brief (verified). Because brand channels also embed weakly against creator briefs, they rarely rank high enough to be visible even before the penalty (Myntra ranks ~134/135 on a literal "Myntra" brief) — so the penalty is a *guarantee* (a corporate never outranks a comparable real creator) more than a frequent tiebreaker, and the UI chip, while correct, fires rarely in normal use. This is **rule-based suppression**, never described as a model. Registry is hand-extensible; no behavioral detection claimed.
+
+## ADR-0030 — Brief-validation gate (reject non-language briefs before matching)
+
+**Status:** Accepted (Day 14)
+
+**Context:** BGE-small does not discriminate meaning on short briefs — gibberish cosine (0.736) can exceed a real brief's (0.678), so a similarity threshold is impossible. Symptom: pure gibberish returned 20 confident matches @85. The fix must be an input-validity gate, not a similarity floor.
+
+**Decision:** `_validate_brief` (`apps/ml/match.py`, before Stage-1). **Exemptions first (load-bearing):** any token that is a real word (`data/common_words.txt`, committed), OR capitalized in the original brief, OR a known brand → brief is valid. Otherwise heuristics: any token ≥ 16 chars, or vowel ratio < 0.20 → reject → empty result + `_BRIEF_REJECT_MSG`. Exemptions-first is required so low-vowel brands ("Myntra") pass. Extended to catch pronounceable keysmash ("vfdsaasv dvcasd"). `main.py` must read `funnel.get("explainer")` **before** `query_expand.explain_results()`, which would otherwise clobber the reject message.
+
+**Consequences:** Obvious junk is rejected; no false-reject on real briefs or brands. Best-effort by design — a pronounceable lowercase non-word that hits no wordlist token, is uncapitalized, isn't a brand, and passes the vowel/length checks could still slip (documented limitation, model card). `common_words.txt` is committed and required at runtime.
+
+## ADR-0031 — Canonical title column (pandas merge-suffix regression fix)
+
+**Status:** Accepted (Day 14)
+
+**Context:** The ADR-0029 brand-suppression patch added `title` to `load_creators`, which then collided in two downstream merges (`_display` + `_match_records`), producing `title_x`/`title_y` and nulling the bare `title` column app-wide — plus a 500 on `/creators` search. Titles and the "Corporate" chip were silently blank in prod from the brand-suppression commit onward.
+
+**Decision:** Drop the duplicate title source in both merges so a single canonical `title` survives — eliminate the collision at source rather than rename suffixes.
+
+**Consequences:** Titles + Corporate chip restored. Lesson encoded: after adding a column to a shared DataFrame, grep every downstream `.merge()` / `df['col']` for suffix collisions — the pandas auto-suffix is silent and nulls the bare-name column for all readers.
