@@ -21,7 +21,7 @@ import os
 import requests
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 _TIMEOUT = 8
 
 _SYSTEM = (
@@ -58,7 +58,8 @@ def expand_brief(brief: str, *, model: str | None = None, timeout: int = _TIMEOU
                     {"role": "user", "content": brief.strip()},
                 ],
                 "temperature": 0.2,
-                "max_tokens": 120,
+                "max_tokens": 300,
+                "reasoning_effort": "low",
             },
             timeout=timeout,
         )

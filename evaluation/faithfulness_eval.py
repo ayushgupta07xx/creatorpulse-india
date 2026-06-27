@@ -2,7 +2,7 @@
 
 Runs each golden case (evaluation/faithfulness_cases.yaml) through the REAL
 groq_chat() tool-calling loop, capturing the tool calls/results that grounded
-the answer. An LLM judge (GROQ_JUDGE_MODEL, default llama-3.1-8b-instant) then
+the answer. An LLM judge (GROQ_JUDGE_MODEL, default openai/gpt-oss-20b) then
 scores each reply for faithfulness to that tool output: does every number/claim
 trace to a tool result or the assistant's allowed framing, with nothing invented?
 
@@ -39,7 +39,7 @@ CASES = HERE / "faithfulness_cases.yaml"
 RESULTS = HERE / "faithfulness_results.jsonl"
 THRESHOLD = 0.80  # mean faithfulness below this fails the run
 JUDGE_MODEL_ENV = "GROQ_JUDGE_MODEL"
-JUDGE_MODEL_DEFAULT = "llama-3.1-8b-instant"
+JUDGE_MODEL_DEFAULT = "openai/gpt-oss-20b"
 
 JUDGE_SYSTEM = (
     "You are a strict evaluator of an AI product assistant's FAITHFULNESS to its "
@@ -136,6 +136,7 @@ def _judge(
             {"role": "user", "content": user},
         ],
         None,
+        response_format={"type": "json_object"},
     )
     text = (raw.get("content") or "").strip()
     # 8b judges occasionally wrap JSON in fences or stray text — extract the object.

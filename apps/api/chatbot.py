@@ -20,7 +20,7 @@ from collections.abc import Callable
 import requests
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_MODEL = "openai/gpt-oss-120b"
 MAX_USER_CHARS = 1500  # per message
 MAX_TURNS = 12  # cap history sent upstream
 MAX_TOOL_ROUNDS = 2  # cap tool round-trips per answer (cost + latency guard)
@@ -194,13 +194,22 @@ def prepare_messages(raw: list[dict]) -> list[dict]:
     return out
 
 
-def _call(api_key: str, model: str, convo: list[dict], tools: list | None) -> dict:
+def _call(
+    api_key: str,
+    model: str,
+    convo: list[dict],
+    tools: list | None,
+    response_format: dict | None = None,
+) -> dict:
     payload: dict = {
         "model": model,
         "messages": convo,
         "temperature": 0.2,
         "max_tokens": 700,
+        "reasoning_effort": "low",
     }
+    if response_format:
+        payload["response_format"] = response_format
     if tools:
         payload["tools"] = tools
         payload["tool_choice"] = "auto"
