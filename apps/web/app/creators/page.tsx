@@ -7,6 +7,7 @@ import Link from "next/link";
 import { searchCreators, type CreatorSummary } from "@/lib/api";
 import CreatorCard from "@/components/CreatorCard";
 import Reveal from "@/components/Reveal";
+import InfoHint from "@/components/InfoHint";
 
 type State =
   | { kind: "idle" }
@@ -50,13 +51,15 @@ export default function CreatorsPage() {
   return (
     <div className="mx-auto max-w-wrap px-6 py-12">
       <Reveal>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-          Search creators
-        </h1>
-        <p className="mt-3 max-w-xl text-muted">
-          Type a channel name. Each result shows reach, an estimated sponsored
-          cost, and an engagement-risk read.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+            Search creators
+          </h1>
+          <InfoHint label="About creator search" placement="left">
+            Type a channel name. Each result shows reach, an estimated sponsored cost, and an
+            engagement-risk read.
+          </InfoHint>
+        </div>
       </Reveal>
 
       <Reveal delay={0.06}>
@@ -65,7 +68,7 @@ export default function CreatorsPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && run()}
-            placeholder="e.g. CarryMinati"
+            placeholder="e.g. Sandeep Maheshwari"
             aria-label="Creator name"
             className="w-full rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-ink placeholder:text-muted focus:border-violet focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet"
           />

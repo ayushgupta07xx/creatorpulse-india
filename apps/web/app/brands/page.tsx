@@ -13,6 +13,7 @@ import {
 } from "@/lib/format";
 import BrandResultCard from "@/components/BrandResultCard";
 import Reveal from "@/components/Reveal";
+import InfoHint from "@/components/InfoHint";
 
 const NICHES = [
   "Tech", "Gaming", "Beauty", "Food", "Fitness", "Comedy", "Education",
@@ -38,6 +39,10 @@ const RISK_CLASS: Record<string, string> = {
   mid: "border-risk-mid/40 text-risk-mid",
   high: "border-risk-high/40 text-risk-high",
 };
+
+const FIELD =
+  "w-full rounded-xl bg-black/30 px-4 py-3 text-ink ring-1 ring-white/10 transition-colors " +
+  "placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-violet/70";
 
 function CompareRow({ label, cells }: { label: string; cells: string[] }) {
   return (
@@ -110,19 +115,24 @@ export default function BrandsPage() {
   return (
     <div className="mx-auto max-w-wrap px-6 py-12">
       <Reveal>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-          Brief a campaign
-        </h1>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+            Brief a campaign
+          </h1>
+          <InfoHint label="How matching works" placement="left">
+            Describe the campaign and budget. We match creators on content fit, niche overlap,
+            reach, and budget, then screen each one for engagement risk before it reaches your
+            shortlist.
+          </InfoHint>
+        </div>
         <p className="mt-3 max-w-xl text-muted">
-          Describe the campaign and budget. We match creators on content fit,
-          niche overlap, reach, and budget, then screen each one for engagement
-          risk before it reaches your shortlist.
+          Describe your campaign and budget — get a ranked, risk-screened shortlist.
         </p>
       </Reveal>
 
       <Reveal delay={0.06}>
-        <div className="mt-8 rounded-2xl border border-white/10 bg-surface/60 p-5">
-          <label htmlFor="brief" className="text-xs text-muted">
+        <div className="mt-8 rounded-2xl bg-gradient-to-b from-surface2 to-surface p-6 ring-1 ring-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_18px_40px_-24px_rgba(0,0,0,0.9)]">
+          <label htmlFor="brief" className="text-xs font-medium uppercase tracking-wide text-muted">
             Campaign brief
           </label>
           <textarea
@@ -131,18 +141,18 @@ export default function BrandsPage() {
             onChange={(e) => setBrief(e.target.value)}
             rows={3}
             placeholder="e.g. Vegan skincare D2C launching nationwide, women 22–35, authentic everyday-routine creators"
-            className="mt-1.5 w-full resize-y rounded-xl border border-white/10 bg-bg/60 px-4 py-3 text-ink placeholder:text-muted focus:border-violet focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet"
+            className={`mt-2 resize-y ${FIELD}`}
           />
-          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-end">
             <div className="sm:w-56">
-              <label htmlFor="niche" className="text-xs text-muted">
+              <label htmlFor="niche" className="text-xs font-medium uppercase tracking-wide text-muted">
                 Niche
               </label>
               <select
                 id="niche"
                 value={niche}
                 onChange={(e) => setNiche(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-white/10 bg-bg/60 px-3 py-2.5 text-ink focus:border-violet focus:outline-none"
+                className={`mt-2 ${FIELD} cursor-pointer py-2.5`}
               >
                 <option value="">Any niche</option>
                 {NICHES.map((n) => (
@@ -155,10 +165,12 @@ export default function BrandsPage() {
             <div className="flex-1">
               <label
                 htmlFor="budget"
-                className="flex items-center justify-between text-xs text-muted"
+                className="flex items-center justify-between text-xs font-medium uppercase tracking-wide text-muted"
               >
                 <span>Budget per integration</span>
-                <span className="font-mono text-ink">{formatINR(budget * 100000)}</span>
+                <span className="font-mono text-sm normal-case text-ink">
+                  {formatINR(budget * 100000)}
+                </span>
               </label>
               <input
                 id="budget"
@@ -168,12 +180,12 @@ export default function BrandsPage() {
                 step={1}
                 value={budget}
                 onChange={(e) => setBudget(Number(e.target.value))}
-                className="mt-3 w-full accent-violet"
+                className="brief-slider mt-4 w-full"
               />
             </div>
             <button
               onClick={run}
-              className="btn-sheen shrink-0 rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-bg transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet"
+              className="btn-sheen shrink-0 rounded-xl bg-ink px-7 py-3 text-sm font-semibold text-bg transition-transform hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet"
             >
               Find creators
             </button>
@@ -184,7 +196,7 @@ export default function BrandsPage() {
               setNiche("Beauty");
               setBudget(15);
             }}
-            className="mt-3 text-xs text-muted underline-offset-2 transition-colors hover:text-ink hover:underline"
+            className="mt-4 inline-flex items-center rounded-full bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-muted ring-1 ring-white/[0.08] transition-colors hover:text-ink hover:ring-white/20"
           >
             Try a sample brief
           </button>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import AuroraBackground from "@/components/AuroraBackground";
 import Reveal from "@/components/Reveal";
+import InfoHint from "@/components/InfoHint";
 import StatStrip from "@/components/StatStrip";
 import NicheSections from "@/components/NicheSections";
 import ScrollProgress from "@/components/ScrollProgress";
@@ -108,13 +109,15 @@ export default function Home() {
       {/* by the numbers */}
       <section className="mx-auto max-w-wrap px-6 py-20">
         <Reveal>
-          <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            By the numbers
-          </h2>
-          <p className="mt-2 max-w-xl text-muted">
-            One corpus of Indian creators, read live from the API — these counts can&apos;t
-            drift from what the product actually serves.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
+              By the numbers
+            </h2>
+            <InfoHint label="About these numbers" placement="left">
+              One corpus of Indian creators, read live from the API — these counts can&apos;t
+              drift from what the product actually serves.
+            </InfoHint>
+          </div>
         </Reveal>
         <div className="mt-8">
           <StatStrip />

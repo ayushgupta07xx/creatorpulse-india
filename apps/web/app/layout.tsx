@@ -65,8 +65,7 @@ export default function RootLayout({
         <main className="relative flex-1">{children}</main>
         <footer className="relative z-20 border-t border-white/10">
           <div className="mx-auto max-w-wrap px-6 py-6 text-sm text-muted">
-            CreatorPulse · built by Ayush Gupta · data via the official YouTube
-            Data API
+            CreatorPulse
           </div>
         </footer>
         <ChatWidget />

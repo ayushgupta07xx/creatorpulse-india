@@ -1,6 +1,6 @@
 // Genuine product maker note. LinkedIn URL is a placeholder — swap before deploy.
 const GITHUB = "https://github.com/ayushgupta07xx";
-const LINKEDIN = "https://www.linkedin.com/in/ayushgupta07xx"; // TODO: confirm/replace
+const LINKEDIN = "https://www.linkedin.com/in/ayush-gupta-544a803a2"; // TODO: confirm/replace
 
 export default function AboutBuiltBy() {
   return (

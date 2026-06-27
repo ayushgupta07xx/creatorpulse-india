@@ -3,7 +3,7 @@ import Reveal from "@/components/Reveal";
 import StatStrip from "@/components/StatStrip";
 
 const GITHUB = "https://github.com/ayushgupta07xx";
-const LINKEDIN = "https://www.linkedin.com/in/ayushgupta07xx"; // TODO: confirm/replace
+const LINKEDIN = "https://www.linkedin.com/in/ayush-gupta-544a803a2"; // TODO: confirm/replace
 
 export default function AboutPage() {
   return (

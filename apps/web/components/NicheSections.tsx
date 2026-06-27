@@ -7,15 +7,17 @@ import { getNiches, type NicheSummary } from "@/lib/api";
 import { formatCompact } from "@/lib/format";
 import { THEME } from "@/lib/theme";
 import Reveal from "@/components/Reveal";
+import InfoHint from "@/components/InfoHint";
 
 function momentum(n: NicheSummary): number {
   if (n.slope == null || !n.median_views) return 0;
   return n.slope / n.median_views;
 }
 
-const SIZE = 116;
-const R = 53;
-const CIRC = 2 * Math.PI * R;
+const MATTE =
+  "group relative overflow-hidden rounded-xl bg-gradient-to-b from-surface2 to-surface p-4 " +
+  "ring-1 ring-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_12px_30px_-18px_rgba(0,0,0,0.85)] " +
+  "transition-all duration-200 hover:-translate-y-0.5 hover:ring-white/15";
 
 export default function NicheSections() {
   const [niches, setNiches] = useState<NicheSummary[] | null>(null);
@@ -28,16 +30,15 @@ export default function NicheSections() {
       .catch(() => setFailed(true));
   }, []);
 
-  const { bubbles, rising, maxC, maxMom } = useMemo(() => {
-    if (!niches) return { bubbles: [], rising: [], maxC: 1, maxMom: 1 };
-    const maxC = Math.max(...niches.map((n) => n.creators), 1);
-    const bubbles = [...niches].sort((a, b) => b.creators - a.creators);
+  const { top6, rising, maxMom } = useMemo(() => {
+    if (!niches) return { top6: [], rising: [], maxMom: 1 };
+    const top6 = [...niches].sort((a, b) => b.creators - a.creators).slice(0, 6);
     const rising = [...niches]
       .filter((n) => (n.slope ?? 0) > 0)
       .sort((a, b) => momentum(b) - momentum(a))
       .slice(0, 6);
     const maxMom = Math.max(...rising.map(momentum), 1e-9);
-    return { bubbles, rising, maxC, maxMom };
+    return { top6, rising, maxMom };
   }, [niches]);
 
   if (failed) return null;
@@ -48,73 +49,56 @@ export default function NicheSections() {
       <div>
         <Reveal>
           <h2 className="font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            The niche landscape
+            Niches at a glance
           </h2>
           <p className="mt-2 max-w-xl text-muted">
-            Every niche we track. The ring around each shows its share of creators; the
-            colour reads demand direction — teal rising, pink cooling. Tap any to explore.
+            The most crowded niches we track, with demand direction — teal rising, pink cooling.
           </p>
         </Reveal>
 
         <Reveal delay={0.08}>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-7">
-            {bubbles.map((b, i) => {
+          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {top6.map((b) => {
               const up = (b.slope ?? 0) > 0;
               const down = (b.slope ?? 0) < 0;
               const color = up ? THEME.teal : down ? THEME.pink : THEME.muted;
-              const frac = b.creators / maxC;
-              const dash = `${(frac * CIRC).toFixed(1)} ${CIRC.toFixed(1)}`;
+              const dir = up ? "Rising" : down ? "Cooling" : "Flat";
               return (
                 <Link
                   key={b.niche}
                   href={`/niches/${encodeURIComponent(b.niche)}`}
-                  className="shrink-0"
-                  title={`${b.niche} · ${b.creators.toLocaleString("en-IN")} creators · median ${formatCompact(b.median_views ?? 0)} views · ${up ? "rising" : down ? "cooling" : "flat"}`}
+                  title={`${b.niche} · ${b.creators.toLocaleString("en-IN")} creators · median ${formatCompact(b.median_views ?? 0)} views · ${dir.toLowerCase()}`}
+                  className={MATTE}
                 >
-                  <motion.div
-                    className="relative cursor-pointer"
-                    style={{ width: SIZE, height: SIZE }}
-                    animate={reduced ? undefined : { y: [0, -10, 0] }}
-                    transition={
-                      reduced
-                        ? undefined
-                        : {
-                            duration: 3.6 + (i % 4) * 0.6,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: (i % 6) * 0.25,
-                          }
-                    }
-                    whileHover={{ scale: 1.08 }}
-                  >
-                    <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="absolute inset-0">
-                      <circle cx={SIZE / 2} cy={SIZE / 2} r={R} fill="none" stroke={THEME.line} strokeWidth="2" />
-                      <circle
-                        cx={SIZE / 2}
-                        cy={SIZE / 2}
-                        r={R}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeDasharray={dash}
-                        transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
-                      />
-                    </svg>
-                    <div
-                      className="absolute inset-[11px] flex flex-col items-center justify-center rounded-full text-center"
-                      style={{ background: `radial-gradient(circle at 50% 32%, ${color}24, transparent 72%)` }}
-                    >
-                      <span className="px-1 text-[13px] font-semibold leading-tight text-ink">{b.niche}</span>
-                      <span className="mt-0.5 font-mono text-[10px] text-muted">
-                        {formatCompact(b.creators)}
-                      </span>
-                    </div>
-                  </motion.div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-semibold leading-tight text-ink">{b.niche}</span>
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: color }}
+                    />
+                  </div>
+                  <div className="mt-3 flex items-baseline gap-1.5">
+                    <span className="font-display text-2xl font-bold tabular-nums text-ink">
+                      {formatCompact(b.creators)}
+                    </span>
+                    <span className="text-[11px] text-muted">creators</span>
+                  </div>
+                  <div className="mt-1.5 text-[11px] font-medium" style={{ color }}>
+                    {dir}
+                  </div>
                 </Link>
               );
             })}
           </div>
+        </Reveal>
+
+        <Reveal delay={0.12}>
+          <Link
+            href="/niches"
+            className="mt-7 inline-flex items-center gap-2 rounded-full bg-gradient-to-b from-surface2 to-surface px-5 py-2.5 text-sm font-semibold text-teal ring-1 ring-white/[0.08] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_8px_24px_-16px_rgba(0,0,0,0.9)] transition-all duration-200 hover:-translate-y-0.5 hover:ring-teal/40"
+          >
+            See all niches
+          </Link>
         </Reveal>
       </div>
 
@@ -170,10 +154,12 @@ export default function NicheSections() {
             </div>
           </Reveal>
 
-          <p className="mt-4 max-w-2xl text-xs text-muted">
-            Momentum = forecast trend slope ÷ typical views (relative, so big niches don&apos;t
-            dominate on volume alone). The weekly demand series is simulated — no real demand
-            history yet.
+          <p className="mt-4 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+            The weekly demand series is simulated — no real demand history yet.
+            <InfoHint label="How momentum is computed">
+              Momentum = forecast trend slope ÷ typical views (relative, so big niches
+              don&apos;t dominate on volume alone).
+            </InfoHint>
           </p>
         </div>
       )}

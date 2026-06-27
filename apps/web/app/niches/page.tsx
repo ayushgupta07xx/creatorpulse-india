@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getNiches, type NicheSummary } from "@/lib/api";
 import { formatCompact } from "@/lib/format";
 import Reveal from "@/components/Reveal";
+import InfoHint from "@/components/InfoHint";
 
 function momentum(n: NicheSummary): number {
   if (n.slope == null || !n.median_views) return 0;
@@ -37,14 +38,16 @@ export default function NichesPage() {
   return (
     <div className="mx-auto max-w-wrap px-6 py-12">
       <Reveal>
-        <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-          The niche landscape
-        </h1>
-        <p className="mt-3 max-w-xl text-muted">
-          Every niche we track across the indexed corpus — how crowded it is, the reach and
-          engagement a typical creator sees, and which way demand is heading. Open one for its
-          forecast and top creators.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+            The niche landscape
+          </h1>
+          <InfoHint label="About the niche landscape" placement="left">
+            Every niche we track across the indexed corpus — how crowded it is, the reach and
+            engagement a typical creator sees, and which way demand is heading. Open one for its
+            forecast and top creators.
+          </InfoHint>
+        </div>
       </Reveal>
 
       <div className="mt-7 inline-flex items-center gap-1 rounded-xl border border-white/10 bg-surface p-1 text-sm">
@@ -89,7 +92,7 @@ export default function NichesPage() {
               <Reveal key={n.niche} delay={Math.min(i * 0.03, 0.3)}>
                 <Link
                   href={`/niches/${encodeURIComponent(n.niche)}`}
-                  className="group relative block h-full overflow-hidden rounded-2xl border border-white/10 bg-surface p-5 transition-all hover:-translate-y-1 hover:border-white/25"
+                  className="group relative block h-full overflow-hidden rounded-2xl bg-gradient-to-b from-surface2 to-surface p-5 ring-1 ring-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_12px_30px_-18px_rgba(0,0,0,0.85)] transition-all duration-200 hover:-translate-y-1 hover:ring-white/15"
                 >
                   <span className={`absolute inset-y-0 left-0 w-1 ${accent}`} aria-hidden />
                   <span
