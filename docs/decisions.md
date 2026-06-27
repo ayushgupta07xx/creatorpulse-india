@@ -350,7 +350,7 @@ Freed weight moves onto the signals that genuinely vary across creators (semanti
 **Context.** The product needs an on-site assistant to explain what CreatorPulse is, how its models work, and what its numbers mean. Two risks: (1) an LLM that free-generates will invent metrics or oversell — fatal for a product whose credibility rests on honest, simulated-labeled figures; (2) a data-Q&A assistant would overlap with AskBharat (conversational analytics on public data), a separate project.
 
 **Decision.**
-- LLM: Groq `llama-3.3-70b-versatile` (portfolio-canonical; generous free tier; free-forever). Adds Groq to the stack but **no new Python dependency** — the call goes through `requests` (already core), so the curated Space build is untouched.
+- LLM: Groq openai/gpt-oss-120b (canonical, migrated from llama-3.3-70b-versatile per ADR-0032;. Adds Groq to the stack but **no new Python dependency** — the call goes through `requests` (already core), so the curated Space build is untouched.
 - Grounding: a single curated system-prompt knowledge base (Canonical Numbers + LIVE/SIMULATED labels + known limitations), **not RAG** — the knowledge is small and bounded, so a vector store would be over-engineering. Hard guardrails: never invent a number, label simulated/heuristic figures as such, surface limitations, decline off-topic/advice, say "I don't know" over fabricating.
 - Scope: a **product guide**, explicitly NOT analytics over the dataset — that lane is AskBharat's. Endpoint `POST /chat`; sync handler so FastAPI threadpools the blocking call; graceful 503/429/502 on config/rate-limit/upstream failure.
 - Config: `GROQ_API_KEY` as a Space Secret; `GROQ_MODEL`/`GROQ_JUDGE_MODEL` as Space Variables; same in local `.env` (gitignored).
@@ -387,7 +387,7 @@ Comedy; short briefs generally under-retrieve. This is an embedding ceiling, not
 a §13 weighting bug — the ADR-0023 reweight does not address it.
 
 **Decision:** Add a Stage-0 ahead of Stage-1 embedding. `apps/ml/query_expand.py`
-calls Groq (`llama-3.3-70b-versatile`, reused via `requests` — no new dependency)
+`calls Groq (`openai/gpt-oss-120b`, reused via `requests — no new dependency)
 to disambiguate the brief toward the creator-economy sense and append 4–8 concrete
 creator-content phrases. Expansion is **additive** (the original brief is preserved
 in the embedded text) and **no-ops to the raw brief** when `GROQ_API_KEY` is unset
@@ -424,7 +424,7 @@ explainer (`explain_results()`).
 
 **Context:** The assistant answers from real tool output and must not fabricate numbers, name definite fraudsters, claim Instagram data, or invent creators. Nothing measured whether it actually holds that line. The model-eval gate (ADR-pending check_regression.py) covers the fraud classifier's F1, not the assistant.
 
-**Decision:** A resumable harness (`evaluation/faithfulness_eval.py`) runs a fixed, committed golden set (`evaluation/faithfulness_cases.yaml`, 12 cases across product-explanation / grounded-data / fabrication-trap kinds) through the real `groq_chat()` tool-calling loop, teeing each tool call+result, then scores each reply with an LLM judge (`GROQ_JUDGE_MODEL`, llama-3.1-8b-instant) for faithfulness to that tool output — 0–1 score + verdict + rationale, persisted to `faithfulness_results.jsonl` (re-runs skip scored ids, surviving free-tier 429s). Product-mechanics cases are judged against a documented PRODUCT_FACTS reference (they call no tool). Results are committed as the artifact of record.
+**Decision:** A resumable harness (`evaluation/faithfulness_eval.py`) runs a fixed, committed golden set (`evaluation/faithfulness_cases.yaml`, 12 cases across product-explanation / grounded-data / fabrication-trap kinds) through the real `groq_chat()` tool-calling loop, teeing each tool call+result, then scores each reply with an LLM judge (GROQ_JUDGE_MODEL, openai/gpt-oss-20b per ADR-0032) for faithfulness to that tool output — 0–1 score + verdict + rationale, persisted to `faithfulness_results.jsonl` (re-runs skip scored ids, surviving free-tier 429s). Product-mechanics cases are judged against a documented PRODUCT_FACTS reference (they call no tool). Results are committed as the artifact of record.
 
 **Framing (important for honesty):** This is a **guardrail smoke-test over a fixed golden set**, not a statistical accuracy metric. A high mean means the assistant refuses/grounds correctly on these known cases — it is not a claim of "100% faithful in general." Résumé/docs language is "faithfulness eval harness," never a faithfulness percentage.
 
@@ -459,3 +459,23 @@ explainer (`explain_results()`).
 **Decision:** Drop the duplicate title source in both merges so a single canonical `title` survives — eliminate the collision at source rather than rename suffixes.
 
 **Consequences:** Titles + Corporate chip restored. Lesson encoded: after adding a column to a shared DataFrame, grep every downstream `.merge()` / `df['col']` for suffix collisions — the pandas auto-suffix is silent and nulls the bare-name column for all readers.
+
+## ADR-0032 — Migrate off deprecated Groq models to GPT-OSS
+
+**Status:** Accepted (Day 14)
+
+**Context:** Groq announced (2026-06-17) the deprecation of both `llama-3.1-8b-instant` and `llama-3.3-70b-versatile`, with shutdown on **2026-08-16**. Both were in use: the 70B as the canonical answer model (chatbot `groq_chat`, Stage-0 query-expansion) and the 8B as the faithfulness-eval judge. A model with an announced death date cannot ship in a free-forever product — a recruiter opening the live chat after the shutdown would get upstream 400s.
+
+**Decision:** Migrate per Groq's recommended replacements — answer model → `openai/gpt-oss-120b` (chatbot + query-expansion), judge → `openai/gpt-oss-20b`. Both are reasoning MoE models, so every Groq payload now sets `reasoning_effort="low"` to cap reasoning-token burn and latency. The reasoning stream is returned in a separate `reasoning` field; `_call` reads only `content`/`tool_calls`, so nothing leaks into user-facing text (verified on the live `/chat`). `query_expand`'s `max_tokens` was raised 120→300 and the judge call now passes `response_format={"type":"json_object"}`, because at `reasoning_effort="low"` the reasoning pass can otherwise starve a small completion budget and return empty `content`. Model IDs stay env-overridable (`GROQ_MODEL`/`GROQ_JUDGE_MODEL`); the hardcoded defaults moved to the GPT-OSS IDs so a missing var can't fall back to a dead model. The existing `tool_use_failed` recovery is retained (harmless on GPT-OSS, which emits clean tool calls).
+
+**Consequences:** Live `/chat` tool-loop verified grounded on `gpt-oss-120b` (clean creator results, no reasoning leak). `faithfulness_results.jsonl` is regenerated on the new models, which also resolves the prior 2/12-cases-on-8B inconsistency. Documented fallback if `gpt-oss-120b`'s reasoning-token burn breaches the free tier under load: `qwen/qwen3.6-27b` via the same `GROQ_MODEL` var (no code change). The §19 PA bullet, §20 keyword, Canonical Numbers, and model card are updated to GPT-OSS to keep claims tracing to the live artifact.
+
+## ADR-0033 — Brief-validation gate: reject only on gibberish evidence, not wordlist-absence
+
+**Status:** Accepted (Day 14, supersedes the over-strict branch of ADR-0030)
+
+**Context:** ADR-0030's gate had a final `return "no_known_words"` catch-all that rejected any brief whose tokens were absent from the bundled 173-word list. This false-rejected legitimate single-word briefs — notably "roasting", the exact polysemous input ADR-0026's query-expansion exists to rescue (it surfaced the Canonical-Numbers "roasting→Comedy" claim) — and would have over-rejected the Hinglish/transliterated and niche vocabulary common in this Indian-market product, which no small English list can cover. The catch-all was also silently doing the work of catching pronounceable keysmash, masking that the explicit gibberish signals were too weak.
+
+**Decision:** Remove the `no_known_words` catch-all — absence of a wordlist hit is not evidence of nonsense. Reject only on positive gibberish signals: a ≥16-char token, or **any token** with ≥6 alpha chars and a vowel ratio < 0.20 (y counted). The vowel check moved from whole-brief averaging to **per-token**, because averaging let one consonant-heavy keysmash token ("dvcasd", 0.167) hide behind another's vowels ("vfdsaasv", 0.25) and pass. Exemptions-first (real word / capitalized / known brand) is unchanged.
+
+**Consequences:** "roasting"/"skincare"/"comedy" and other thin real briefs now flow through to query-expansion as intended (ADR-0026 claim restored, no downgrade). Keysmash — including the pronounceable two-token "vfdsaasv dvcasd" — is still rejected by the per-token vowel signal. Residual best-effort edge: a solo ≥6-letter real word with a single vowel-letter (e.g. "rhythm") false-rejects when typed alone; any co-token exempts it. Documented in the model card. Verified on the spectrum {roasting, skincare, fitness, comedy, full brief} → pass; {asdfghjkl, vfdsaasv dvcasd, dvcasd, 16-char junk} → reject.
