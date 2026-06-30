@@ -9,7 +9,7 @@ export default function AboutPage() {
   return (
     <div className="flex flex-col">
       <section className="relative overflow-hidden">
-        <AuroraBackground />
+        <AuroraBackground extended />
         <div className="relative z-10 mx-auto max-w-wrap px-6 pb-12 pt-16">
           <Reveal>
             <span className="font-mono text-xs uppercase tracking-[0.2em] text-teal">

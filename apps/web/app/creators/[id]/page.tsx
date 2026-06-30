@@ -22,6 +22,7 @@ import {
 } from "@/lib/format";
 import CreatorCard from "@/components/CreatorCard";
 import Reveal from "@/components/Reveal";
+import InfoHint from "@/components/InfoHint";
 import ForecastChart from "@/components/ForecastChart";
 import ProjectionChart from "@/components/ProjectionChart";
 
@@ -58,10 +59,21 @@ function duration(sec: number | null | undefined): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
     <div className="rounded-2xl border border-white/10 bg-surface/60 p-6">
-      <h2 className="font-display text-lg font-bold tracking-tight text-ink">{title}</h2>
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="font-display text-lg font-bold tracking-tight text-ink">{title}</h2>
+        {action}
+      </div>
       <div className="mt-4">{children}</div>
     </div>
   );
@@ -196,6 +208,7 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
             <img
               src={c.thumbnail_url}
               alt=""
+              decoding="async"
               width={96}
               height={96}
               referrerPolicy="no-referrer"
@@ -216,6 +229,14 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
               >
                 {humanizeArchetype(c.archetype)}
               </span>
+              {c.is_short && (
+                <span
+                  className="rounded bg-violet/15 px-2 py-0.5 text-sm font-medium text-violet"
+                  title="Short-form channel — integration priced at the Shorts rate (~0.5× long-form)"
+                >
+                  Shorts
+                </span>
+              )}
               {c.country && (
                 <span className="rounded bg-white/5 px-2 py-0.5 text-sm text-muted">{c.country}</span>
               )}
@@ -226,7 +247,16 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
 
       <div className="mt-8 grid grid-cols-1 gap-6">
         <Reveal delay={0.04}>
-          <Section title="At a glance">
+          <Section
+            title="At a glance"
+            action={
+              <InfoHint label="About these estimates" placement="left">
+                Sponsor cost is a rough estimate of what a brand might pay to sponsor one video,
+                based on the creator&apos;s audience size and typical reach — a proxy, not a quote.
+                The risk read is a heuristic engagement-quality screen, not platform-verified fraud. Channels with fewer than 10 videos show &ldquo;Insufficient history&rdquo; / &ldquo;Limited history&rdquo; — too few uploads for a stable per-video reach.
+              </InfoHint>
+            }
+          >
             <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
               <Stat label="Subscribers" value={formatCompact(c.subscriber_count)} />
               <Stat label="Total views" value={formatCompact(c.view_count)} />
@@ -236,40 +266,66 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
             <div className="mt-6 flex flex-wrap items-end gap-x-10 gap-y-4">
               <Stat
                 label="Est. sponsor cost"
-                value={`${formatINR(c.est_cost_low_inr)}–${formatINR(c.est_cost_high_inr)}`}
+                value={(() => {
+                  if (c.cost_basis === "insufficient") return "Insufficient history";
+                  if (c.cost_basis === "unverified") return "Format unverified";
+                  const lo = formatINR(c.est_cost_low_inr);
+                  const hi = formatINR(c.est_cost_high_inr);
+                  if (lo !== hi) return `${lo}–${hi}`;
+                  const note =
+                    c.cost_basis === "cap"
+                      ? " (capped)"
+                      : c.cost_basis === "base"
+                        ? " (base rate)"
+                        : "";
+                  return `${lo}${note}`;
+                })()}
               />
               <div>
                 <dt className="text-xs text-muted">Engagement risk</dt>
                 <dd className="mt-1">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-semibold ${RISK_CLASS[level]}`}
-                  >
-                    {riskLabel(level)}
-                  </span>
+                  {c.cost_basis === "insufficient" ? (
+                    <span className="inline-flex items-center rounded-full border border-white/15 px-2.5 py-0.5 text-sm font-semibold text-muted">
+                      Limited history
+                    </span>
+                  ) : (
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-semibold ${RISK_CLASS[level]}`}
+                    >
+                      {riskLabel(level)}
+                    </span>
+                  )}
                 </dd>
               </div>
             </div>
-            <p className="mt-4 text-xs text-muted">
-              Sponsor cost is a rough estimate of what a brand might pay to sponsor one video,
-              based on the creator&apos;s audience size and typical reach — a proxy, not a quote.
-              The risk read is a heuristic engagement-quality screen, not platform-verified fraud.
-            </p>
           </Section>
         </Reveal>
 
         <Reveal delay={0.06}>
-          <Section title="Growth">
+          <Section
+            title="Growth"
+            action={
+              <InfoHint label="About this projection" placement="left">
+                Point = current measured subscribers. Dotted line = a 12-week projection scaled from
+                the (simulated) niche-demand trend — not measured channel history. Per-channel
+                longitudinal tracking accrues from the first daily snapshot onward.
+              </InfoHint>
+            }
+          >
             <ProjectionChart currentSubs={c.subscriber_count} forecast={forecast?.forecast ?? null} />
-            <p className="mt-3 text-xs text-muted">
-              Point = current measured subscribers. Dotted line = a 12-week projection scaled from
-              the (simulated) niche-demand trend — not measured channel history. Per-channel
-              longitudinal tracking accrues from the first daily snapshot onward.
-            </p>
           </Section>
         </Reveal>
 
         <Reveal delay={0.06}>
-          <Section title="Engagement quality">
+          <Section
+            title="Engagement quality"
+            action={
+              <InfoHint label="About engagement quality" placement="left">
+                Engagement rate = (likes + comments) / views over observed videos. Percentile is
+                within this creator&apos;s niche cohort. Consistency (CV) is in the lower row.
+              </InfoHint>
+            }
+          >
             <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
               <Stat label="Mean engagement rate" value={pctStr(c.mean_engagement_rate)} />
               <Stat
@@ -279,10 +335,6 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
               <Stat label="Like rate" value={pctStr(c.mean_like_rate)} />
               <Stat label="Comment rate" value={pctStr(c.mean_comment_rate)} />
             </dl>
-            <p className="mt-4 text-xs text-muted">
-              Engagement rate = (likes + comments) / views over observed videos. Percentile is
-              within this creator&apos;s niche cohort. Consistency below.
-            </p>
             <dl className="mt-4 grid grid-cols-2 gap-6 sm:grid-cols-4">
               <Stat label="Comment-to-like" value={pctStr(c.mean_comment_to_like_ratio)} />
               <Stat
@@ -360,19 +412,23 @@ export default function CreatorProfile({ params }: { params: { id: string } }) {
 
         {peers && (
           <Reveal delay={0.06}>
-            <Section title="Suggestions">
-              <p className="mb-3 text-xs text-muted">
-                Rule-based against {peers.niche ?? c.niche} medians — not ML.
-              </p>
+            <Section
+              title="Suggestions"
+              action={
+                <InfoHint label="About these suggestions" placement="left">
+                  Rule-based against {peers.niche ?? c.niche} medians — not ML.
+                </InfoHint>
+              }
+            >
               {tips.length > 0 ? (
-                <ul className="flex flex-col gap-2 text-sm text-ink">
+                <ol className="flex flex-col gap-2 text-sm text-ink">
                   {tips.map((t, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="text-violet">→</span>
+                    <li key={i} className="flex gap-3">
+                      <span className="font-mono text-xs font-semibold text-violet">{i + 1}.</span>
                       <span>{t}</span>
                     </li>
                   ))}
-                </ul>
+                </ol>
               ) : (
                 <p className="text-sm text-muted">
                   At or above the {peers.niche ?? c.niche} median on cadence and engagement — keep

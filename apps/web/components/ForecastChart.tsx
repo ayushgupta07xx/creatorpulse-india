@@ -4,10 +4,9 @@ import { THEME } from "@/lib/theme";
 import { formatCompact } from "@/lib/format";
 import type { NicheForecastPoint } from "@/lib/api";
 
-// Niche weekly-views forecast, styled to match ProjectionChart: a solid measured
-// history line that turns dotted for the 12-week forecast, the 80% interval shaded
-// only over the forecast region, a teal "present" marker at the split, and clean
-// date/value corner labels. Scales to container width with non-scaling strokes.
+// Niche weekly-views forecast: gradient-filled measured history that turns dotted
+// for the 12-week forecast, an 80% interval shaded over the forecast region, a
+// glowing teal "present" marker at the split, and clean two-tone corner labels.
 export default function ForecastChart({
   forecast,
   horizon = 12,
@@ -22,15 +21,14 @@ export default function ForecastChart({
   }
 
   const W = 640;
-  const H = 200;
-  const padX = 10;
-  const padTop = 16;
-  const padBot = 26;
+  const H = 210;
+  const padX = 14;
+  const padTop = 22;
+  const padBot = 30;
   const plotBot = H - padBot;
 
-  const split = Math.max(0, n - horizon); // index where the forecast begins
+  const split = Math.max(0, n - horizon);
 
-  // Only the forecast region carries an interval; history is the measured anchor.
   const all = pts.flatMap((p, i) => (i >= split ? [p.lo80, p.hi80, p.yhat] : [p.yhat]));
   const ymin = Math.min(...all);
   const ymax = Math.max(...all);
@@ -38,16 +36,22 @@ export default function ForecastChart({
   const x = (i: number) => padX + (i * (W - 2 * padX)) / (n - 1);
   const y = (v: number) => padTop + (1 - (v - ymin) / span) * (plotBot - padTop);
 
-  // History: solid, indices 0..split (inclusive, so it meets the forecast line).
-  const hist = pts
-    .slice(0, split + 1)
-    .map((p, i) => `${x(i).toFixed(1)},${y(p.yhat).toFixed(1)}`)
-    .join(" ");
-  // Forecast: dotted, indices split..n-1 (matches ProjectionChart's dotted future).
-  const fcPts = pts.slice(split);
-  const fc = fcPts.map((p, i) => `${x(split + i).toFixed(1)},${y(p.yhat).toFixed(1)}`).join(" ");
+  // Smooth history path + area fill.
+  const histPts = pts.slice(0, split + 1).map((p, i) => [x(i), y(p.yhat)] as const);
+  const histD = smoothPath(histPts);
+  const histArea =
+    histPts.length >= 2
+      ? `${histD} L ${histPts[histPts.length - 1][0].toFixed(1)},${plotBot.toFixed(
+          1,
+        )} L ${histPts[0][0].toFixed(1)},${plotBot.toFixed(1)} Z`
+      : "";
 
-  // 80% interval polygon over the forecast region only.
+  // Smooth forecast path (dotted).
+  const fcPts = pts.slice(split);
+  const fcXY = fcPts.map((p, i) => [x(split + i), y(p.yhat)] as const);
+  const fcD = smoothPath(fcXY);
+
+  // 80% interval polygon over the forecast region.
   const top = fcPts.map((p, i) => `${x(split + i).toFixed(1)},${y(p.hi80).toFixed(1)}`);
   const bot = fcPts
     .map((p, i) => `${x(split + i).toFixed(1)},${y(p.lo80).toFixed(1)}`)
@@ -64,31 +68,79 @@ export default function ForecastChart({
       role="img"
       aria-label="Niche weekly-views forecast with 80% interval"
     >
-      {/* 80% interval, forecast region only */}
-      {fcPts.length >= 2 && <polygon points={band} fill={THEME.violet} fillOpacity="0.12" />}
+      <defs>
+        <linearGradient id="fc-area" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={THEME.violet} stopOpacity="0.26" />
+          <stop offset="100%" stopColor={THEME.violet} stopOpacity="0" />
+        </linearGradient>
+        <linearGradient id="fc-line" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor={THEME.teal} />
+          <stop offset="100%" stopColor={THEME.violet} />
+        </linearGradient>
+        <linearGradient id="fc-band" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={THEME.violet} stopOpacity="0.20" />
+          <stop offset="100%" stopColor={THEME.violet} stopOpacity="0.04" />
+        </linearGradient>
+        <filter id="fc-glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="3.5" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
 
-      {/* measured history: solid */}
+      {/* baseline */}
+      <line
+        x1={padX}
+        x2={W - padX}
+        y1={plotBot}
+        y2={plotBot}
+        stroke="rgba(255,255,255,0.06)"
+        strokeWidth="1"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* 80% interval, forecast region only */}
+      {fcPts.length >= 2 && <polygon points={band} fill="url(#fc-band)" />}
+
+      {/* history area fill */}
+      {histArea && <path d={histArea} fill="url(#fc-area)" />}
+
+      {/* history: smooth, glow underlay + crisp line */}
       {split >= 1 && (
-        <polyline
-          points={hist}
-          fill="none"
-          stroke={THEME.violet}
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-          vectorEffect="non-scaling-stroke"
-        />
+        <>
+          <path
+            d={histD}
+            fill="none"
+            stroke="url(#fc-line)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            opacity="0.45"
+            filter="url(#fc-glow)"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={histD}
+            fill="none"
+            stroke="url(#fc-line)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </>
       )}
 
       {/* forecast: dotted */}
-      <polyline
-        points={fc}
+      <path
+        d={fcD}
         fill="none"
         stroke={THEME.violet}
         strokeWidth="2"
-        strokeDasharray="5 4"
-        strokeLinejoin="round"
+        strokeDasharray="5 5"
         strokeLinecap="round"
+        strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
 
@@ -105,9 +157,16 @@ export default function ForecastChart({
             strokeDasharray="3 4"
             vectorEffect="non-scaling-stroke"
           />
-          <circle cx={splitX} cy={y(pts[split].yhat)} r="4" fill={THEME.teal} />
+          <circle cx={splitX} cy={y(pts[split].yhat)} r="9" fill={THEME.teal} opacity="0.18" />
+          <circle
+            cx={splitX}
+            cy={y(pts[split].yhat)}
+            r="4.5"
+            fill={THEME.teal}
+            filter="url(#fc-glow)"
+          />
           <text
-            x={splitX + 6}
+            x={splitX + 8}
             y={padTop + 4}
             fill={THEME.muted}
             fontSize="10"
@@ -118,20 +177,42 @@ export default function ForecastChart({
         </>
       )}
 
-      {/* corner labels, ProjectionChart-style */}
-      <text x={padX} y={H - 8} fill={THEME.muted} fontSize="11" fontFamily="var(--font-mono)">
+      {/* corner labels */}
+      <text x={padX} y={H - 9} fill={THEME.muted} fontSize="12" fontFamily="var(--font-mono)">
         {pts[0].ds.slice(0, 10)}
       </text>
       <text
         x={W - padX}
-        y={H - 8}
-        fill={THEME.muted}
-        fontSize="11"
+        y={H - 9}
+        fill={THEME.ink}
+        fontSize="12"
         textAnchor="end"
         fontFamily="var(--font-mono)"
       >
-        {last.ds.slice(0, 10)} · {formatCompact(last.yhat)}/wk
+        {last.ds.slice(0, 10)}
+        <tspan fill={THEME.muted}> · {formatCompact(last.yhat)}/wk</tspan>
       </text>
     </svg>
   );
+}
+
+// Catmull-Rom through points -> smooth cubic bezier path string.
+function smoothPath(pts: ReadonlyArray<readonly [number, number]>): string {
+  if (pts.length < 2) return "";
+  const p = pts;
+  let d = `M ${p[0][0].toFixed(1)},${p[0][1].toFixed(1)}`;
+  for (let i = 0; i < p.length - 1; i++) {
+    const p0 = p[i - 1] ?? p[i];
+    const p1 = p[i];
+    const p2 = p[i + 1];
+    const p3 = p[i + 2] ?? p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C ${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(
+      1,
+    )},${p2[1].toFixed(1)}`;
+  }
+  return d;
 }

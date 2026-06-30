@@ -61,9 +61,10 @@ export default function Home() {
     <>
       <ScrollProgress />
 
+      {/* full-page aurora accent (revert: remove `extended`, move back into hero) */}
+      <AuroraBackground extended />
       {/* hero */}
       <section className="relative flex min-h-[calc(100vh-4.5rem)] items-center overflow-hidden">
-        <AuroraBackground />
         <div className="relative z-10 mx-auto w-full max-w-wrap px-6">
           <div className="max-w-3xl">
             <Reveal>

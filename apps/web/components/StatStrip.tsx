@@ -27,7 +27,7 @@ export default function StatStrip() {
       {items.map((it) => (
         <div
           key={it.label}
-          className="rounded-2xl border border-white/10 bg-surface px-6 py-6"
+          className="card-fill group rounded-2xl px-6 py-6 ring-1 ring-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_12px_30px_-18px_rgba(0,0,0,0.85),0_0_24px_-8px_rgba(84,224,206,0.16)] transition-all duration-200 hover:-translate-y-0.5 hover:ring-teal/25 hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_36px_-18px_rgba(0,0,0,0.9),0_0_34px_-6px_rgba(84,224,206,0.32)]"
         >
           <div className="font-display text-3xl font-bold tracking-tight text-ink">
             {it.value === undefined ? (

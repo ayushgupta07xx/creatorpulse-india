@@ -24,10 +24,43 @@ body {
   opacity: 0.5;
   animation: aurora-drift 26s ease-in-out infinite alternate;
 }
-.aurora-b1 { width: 520px; height: 520px; background: #6e54ff; top: -120px; left: 2%; }
-.aurora-b2 { width: 460px; height: 460px; background: #1fb6a6; top: 0; right: 6%; animation-delay: -8s; }
-.aurora-b3 { width: 440px; height: 440px; background: #ff5fa8; bottom: -90px; left: 28%; opacity: 0.32; animation-delay: -14s; }
-.aurora-b4 { width: 500px; height: 500px; background: #6e54ff; bottom: -150px; right: 10%; opacity: 0.34; animation-delay: -4s; }
+
+.aurora-b1 {
+  width: 520px;
+  height: 520px;
+  background: #6e54ff;
+  top: -120px;
+  left: 2%;
+}
+
+.aurora-b2 {
+  width: 460px;
+  height: 460px;
+  background: #1fb6a6;
+  top: 0;
+  right: 6%;
+  animation-delay: -8s;
+}
+
+.aurora-b3 {
+  width: 440px;
+  height: 440px;
+  background: #ff5fa8;
+  bottom: -90px;
+  left: 28%;
+  opacity: 0.32;
+  animation-delay: -14s;
+}
+
+.aurora-b4 {
+  width: 500px;
+  height: 500px;
+  background: #6e54ff;
+  bottom: -150px;
+  right: 10%;
+  opacity: 0.34;
+  animation-delay: -4s;
+}
 
 .aurora-spot {
   position: absolute;
@@ -37,13 +70,25 @@ body {
 }
 
 @keyframes aurora-drift {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(40px, 30px) scale(1.12); }
-  100% { transform: translate(-30px, 20px) scale(0.96); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(40px, 30px) scale(1.12);
+  }
+
+  100% {
+    transform: translate(-30px, 20px) scale(0.96);
+  }
 }
 
 /* Premium button sheen sweep on hover. */
-.btn-sheen { position: relative; overflow: hidden; }
+.btn-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
 .btn-sheen::after {
   content: "";
   position: absolute;
@@ -54,12 +99,23 @@ body {
   background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.5), transparent);
   transition: left 0.6s;
 }
-.btn-sheen:hover::after { left: 160%; }
+
+.btn-sheen:hover::after {
+  left: 160%;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .aurora-blob { animation: none; }
-  .aurora-spot { display: none; }
-  .btn-sheen::after { display: none; }
+  .aurora-blob {
+    animation: none;
+  }
+
+  .aurora-spot {
+    display: none;
+  }
+
+  .btn-sheen::after {
+    display: none;
+  }
 }
 
 /* Shimmer for the demo/GIF placeholder slot. */
@@ -68,11 +124,17 @@ body {
   background-size: 200% 100%;
   animation: shimmer 2.4s linear infinite;
 }
+
 @keyframes shimmer {
-  to { background-position: -200% 0; }
+  to {
+    background-position: -200% 0;
+  }
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .shimmer { animation: none; }
+  .shimmer {
+    animation: none;
+  }
 }
 
 /* Brief budget slider — matte track, violet fill, premium thumb. */
@@ -84,6 +146,7 @@ body {
   background: rgba(255, 255, 255, 0.08);
   outline: none;
 }
+
 .brief-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -96,7 +159,11 @@ body {
   cursor: pointer;
   transition: transform 0.15s;
 }
-.brief-slider::-webkit-slider-thumb:hover { transform: scale(1.12); }
+
+.brief-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+
 .brief-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
@@ -106,8 +173,57 @@ body {
   box-shadow: 0 0 0 1px rgba(156, 139, 255, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.7);
   cursor: pointer;
 }
+
 .brief-slider::-moz-range-progress {
   height: 6px;
   border-radius: 9999px;
   background: #9C8BFF;
+}
+
+/* Matte veil over the full-page aurora: flat base-tone wash + soft vignette knocks
+   the glossy glow down to a muted matte wash. Reversible: remove the .aurora-veil
+   element in AuroraBackground.tsx (and this block) to restore the glossy aurora. */
+.aurora-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 80% at 50% 0%, transparent 30%, rgba(7, 7, 11, 0.55) 100%),
+    rgba(7, 7, 11, 0.42);
+  backdrop-filter: saturate(0.85);
+}
+
+/* Card fill: always-on teal bloom rising from the bottom, fading into the
+   dark teal base — lit-from-within, subtle. Tune the first rgba alpha. */
+.card-fill {
+  background: linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.06)), rgba(13, 20, 23, 0.38);
+  backdrop-filter: blur(8px) saturate(1.15);
+}
+
+/* Accelerating-now leaderboard surface (matches the glass card-fill family). */
+.leaderboard-card {
+  background: linear-gradient(rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.04)), rgba(13, 20, 23, 0.5);
+  backdrop-filter: blur(8px) saturate(1.1);
+}
+
+
+/* Subtle, professional button press feedback. Targets real interactive buttons
+   (skips disabled). Scales in slightly on press; smooth transition on transform.
+   Reduced-motion users get no scale. */
+button:not(:disabled) {
+  transition:
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.25s ease,
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.98);
+  transition-duration: 0.08s;
+}
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active {
+    transform: none;
+  }
 }

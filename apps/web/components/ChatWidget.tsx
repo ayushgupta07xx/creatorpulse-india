@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentPropsWithoutRef } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { chat, sendFeedback, type ChatMessage } from "@/lib/api";
@@ -75,6 +81,51 @@ export default function ChatWidget() {
   // The server stays a single round-trip returning {reply}; this only animates display.
   const [stream, setStream] = useState<{ idx: number; shown: number } | null>(null);
   const [feedback, setFeedback] = useState<Record<number, "up" | "down">>({});
+  const [chatSize, setChatSize] = useState({ w: 352, h: 512 });
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [hintOpen, setHintOpen] = useState(false);
+  // Launcher hint: nudge visitors toward the assistant. ChatWidget is mounted
+  // once in the global layout, so this effect runs on each page load / refresh /
+  // new tab, but NOT on client-side navigation between tabs (no remount).
+  useEffect(() => {
+    setHintOpen(true);
+    const t = setTimeout(() => setHintOpen(false), 5000);
+    return () => clearTimeout(t);
+  }, []);
+  // External trigger: other parts of the app (e.g. the creators empty state)
+  // can ask the assistant a question via a window event. Opens, prefills, sends.
+  useEffect(() => {
+    function onAsk(e: Event) {
+      const q = (e as CustomEvent<{ q?: string }>).detail?.q;
+      if (!q) return;
+      setOpen(true);
+      setInput(q);
+      void send(q);
+    }
+    window.addEventListener("creatorpulse:ask", onAsk as EventListener);
+    return () => window.removeEventListener("creatorpulse:ask", onAsk as EventListener);
+    // send is stable enough for this fire-and-forget trigger; deps intentionally bare.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const startResize = (e: ReactPointerEvent) => {
+    e.preventDefault();
+    const sx = e.clientX;
+    const sy = e.clientY;
+    const sw = chatSize.w;
+    const sh = chatSize.h;
+    const onMove = (ev: PointerEvent) => {
+      // panel is anchored bottom-right; dragging the bottom-left grip grows w/h
+      const w = Math.min(Math.max(sw + (sx - ev.clientX), 320), window.innerWidth - 40);
+      const h = Math.min(Math.max(sh + (ev.clientY - sy), 360), window.innerHeight - 112);
+      setChatSize({ w, h });
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
   const distinctId = useRef<string>("");
   useEffect(() => {
     // Stable anonymous id per browser, so feedback rows aren't all one person.
@@ -154,8 +205,24 @@ export default function ChatWidget() {
 
   return (
     <>
+      {hintOpen && !open && (
+        <div className="fixed bottom-7 right-24 z-50 flex items-center" role="status">
+          <button
+            type="button"
+            onClick={() => setHintOpen(false)}
+            className="relative rounded-xl bg-gradient-to-br from-violet to-teal px-3.5 py-2 text-sm font-semibold text-bg shadow-lg shadow-violet/25 transition-transform hover:scale-[1.02]"
+          >
+            Questions? Ask the assistant
+            <span
+              className="absolute right-[-6px] top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 bg-teal"
+              aria-hidden
+            />
+          </button>
+        </div>
+      )}
       <button
         onClick={() => {
+          setHintOpen(false);
           setOpen((o) => !o);
           if (!open) track("chat_opened");
         }}
@@ -174,9 +241,58 @@ export default function ChatWidget() {
       </button>
 
       {open && (
-        <div className="fixed bottom-24 right-5 z-50 flex h-[32rem] max-h-[calc(100vh-7rem)] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-surface shadow-2xl">
-          <div className="border-b border-white/10 px-4 py-3">
-            <p className="font-display text-sm font-bold text-ink">CreatorPulse assistant</p>
+        <div
+          style={{
+            width: chatSize.w,
+            height: chatSize.h,
+            background: "linear-gradient(160deg, #1c1630 0%, #13202a 55%, #0e0d16 100%)",
+          }}
+          className="fixed bottom-24 right-5 z-50 flex max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl ring-1 ring-white/[0.12] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_24px_60px_-20px_rgba(0,0,0,0.9)]"
+        >
+          <div
+            onPointerDown={startResize}
+            title="Drag to resize"
+            aria-label="Resize chat"
+            className="absolute bottom-1 left-1 z-20 h-4 w-4 cursor-nesw-resize opacity-50 hover:opacity-90"
+            style={{
+              background:
+                "linear-gradient(45deg, transparent 55%, rgba(255,255,255,0.5) 55%, rgba(255,255,255,0.5) 65%, transparent 65%, transparent 78%, rgba(255,255,255,0.5) 78%, rgba(255,255,255,0.5) 88%, transparent 88%)",
+            }}
+          />
+          <div
+            onMouseEnter={() => setInfoOpen(true)}
+            onMouseLeave={() => setInfoOpen(false)}
+          >
+            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+              <p className="font-display text-sm font-bold text-ink">CreatorPulse assistant</p>
+              <span
+                aria-label="What can the assistant answer?"
+                className="flex h-5 w-5 cursor-help items-center justify-center rounded-full text-[11px] font-semibold text-violet ring-1 ring-violet/40 transition-colors hover:bg-violet/15 hover:text-ink"
+              >
+                ?
+              </span>
+            </div>
+            {infoOpen && (
+              <div className="absolute inset-x-0 top-[3.25rem] bottom-0 z-30 overflow-y-auto bg-[#13121d] px-5 py-4">
+                <p className="font-display text-sm font-bold text-ink">What I can help with</p>
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-teal">Can answer</p>
+                <ul className="mt-1.5 space-y-1 text-xs leading-relaxed text-muted">
+                  <li>Any indexed creator&apos;s stats — subscribers, typical &amp; average views, niche, archetype, engagement-risk, estimated sponsor cost.</li>
+                  <li>Compare two creators on those metrics.</li>
+                  <li>Match a campaign brief to a ranked creator shortlist.</li>
+                  <li>Which niches are rising or cooling.</li>
+                </ul>
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-violet">Can&apos;t answer</p>
+                <ul className="mt-1.5 space-y-1 text-xs leading-relaxed text-muted">
+                  <li>Real earnings — only a reach-based cost <em>estimate</em>, not actual income.</li>
+                  <li>Instagram or other platforms — YouTube only.</li>
+                  <li>Fraud verdicts — engagement risk is a heuristic signal, not an accusation.</li>
+                  <li>Per-channel history — one snapshot; only niche demand is forecast (simulated).</li>
+                  <li>Channels outside the ~12,500 indexed.</li>
+                <li>Cost or risk for channels with fewer than 10 videos (insufficient history).</li>
+                </ul>
+              </div>
+            )}
           </div>
 
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
@@ -191,7 +307,7 @@ export default function ChatWidget() {
                     className={
                       isUser
                         ? "max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-sm bg-violet/20 px-3 py-2 text-sm text-ink"
-                        : "max-w-[85%] rounded-2xl rounded-bl-sm bg-white/5 px-3 py-2 text-sm text-ink"
+                        : "max-w-[85%] rounded-2xl rounded-bl-sm bg-white/[0.04] px-3 py-2 text-sm text-ink ring-1 ring-white/[0.06]"
                     }
                   >
                     {isUser ? (
@@ -246,7 +362,7 @@ export default function ChatWidget() {
             })}
             {loading && (
               <div className="flex justify-start">
-                <div className="rounded-2xl rounded-bl-sm bg-white/5 px-3 py-2 text-sm text-muted">…thinking</div>
+                <div className="rounded-2xl rounded-bl-sm bg-white/[0.04] px-3 py-2 text-sm text-muted ring-1 ring-white/[0.06]">…thinking</div>
               </div>
             )}
             {error && <p className="text-xs text-risk-high">{error}</p>}
@@ -256,7 +372,7 @@ export default function ChatWidget() {
                   <button
                     key={s}
                     onClick={() => send(s)}
-                    className="block w-full rounded-lg border border-white/10 px-3 py-2 text-left text-xs text-muted transition-colors hover:border-violet/40 hover:text-ink"
+                    className="block w-full rounded-lg bg-white/[0.03] px-3 py-2 text-left text-xs text-muted ring-1 ring-white/[0.07] transition-colors hover:text-ink hover:ring-violet/40"
                   >
                     {s}
                   </button>
@@ -265,7 +381,7 @@ export default function ChatWidget() {
             )}
           </div>
 
-          <div className="border-t border-white/10 p-3">
+          <div className="border-t border-white/[0.06] p-3">
             <div className="flex items-end gap-2">
               <textarea
                 value={input}
@@ -278,7 +394,7 @@ export default function ChatWidget() {
                 }}
                 rows={1}
                 placeholder="Ask about CreatorPulse…"
-                className="max-h-24 flex-1 resize-none rounded-lg border border-white/10 bg-bg px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-violet/50 focus:outline-none"
+                className="max-h-24 flex-1 resize-none rounded-lg bg-black/30 px-3 py-2 text-sm text-ink ring-1 ring-white/10 placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-violet/60"
               />
               <button
                 onClick={() => send(input)}

@@ -15,9 +15,10 @@ function momentum(n: NicheSummary): number {
 }
 
 const MATTE =
-  "group relative overflow-hidden rounded-xl bg-gradient-to-b from-surface2 to-surface p-4 " +
-  "ring-1 ring-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_12px_30px_-18px_rgba(0,0,0,0.85)] " +
-  "transition-all duration-200 hover:-translate-y-0.5 hover:ring-white/15";
+  "card-fill group relative overflow-hidden rounded-xl p-4 " +
+  "ring-1 ring-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_12px_30px_-18px_rgba(0,0,0,0.85),0_0_24px_-8px_rgba(84,224,206,0.16)] " +
+  "transition-all duration-200 hover:-translate-y-0.5 hover:ring-teal/25 " +
+  "hover:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.06),0_16px_36px_-18px_rgba(0,0,0,0.9),0_0_34px_-6px_rgba(84,224,206,0.32)]";
 
 export default function NicheSections() {
   const [niches, setNiches] = useState<NicheSummary[] | null>(null);
@@ -52,7 +53,7 @@ export default function NicheSections() {
             Niches at a glance
           </h2>
           <p className="mt-2 max-w-xl text-muted">
-            The most crowded niches we track, with demand direction — teal rising, pink cooling.
+            The most crowded niches we track, with demand direction.
           </p>
         </Reveal>
 
@@ -70,12 +71,8 @@ export default function NicheSections() {
                   title={`${b.niche} · ${b.creators.toLocaleString("en-IN")} creators · median ${formatCompact(b.median_views ?? 0)} views · ${dir.toLowerCase()}`}
                   className={MATTE}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div>
                     <span className="font-semibold leading-tight text-ink">{b.niche}</span>
-                    <span
-                      className="mt-1 h-2 w-2 shrink-0 rounded-full"
-                      style={{ background: color }}
-                    />
                   </div>
                   <div className="mt-3 flex items-baseline gap-1.5">
                     <span className="font-display text-2xl font-bold tabular-nums text-ink">
@@ -115,21 +112,30 @@ export default function NicheSections() {
           </Reveal>
 
           <Reveal delay={0.08}>
-            <div className="mt-8 flex flex-col">
+            <div className="leaderboard-card mt-8 overflow-hidden rounded-2xl ring-1 ring-white/[0.07] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_18px_44px_-22px_rgba(0,0,0,0.9)]">
               {rising.map((n, i) => {
                 const w = Math.max(8, (momentum(n) / maxMom) * 100);
                 const isLast = i === rising.length - 1;
+                const isTop = i === 0;
+                const top3 = i < 3;
                 return (
                   <Link
                     key={n.niche}
                     href={`/niches/${encodeURIComponent(n.niche)}`}
-                    className={`group flex items-baseline gap-5 py-5 transition-colors hover:bg-white/[0.02] ${isLast ? "" : "border-b border-white/5"}`}
+                    className={`group relative flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.03] ${isLast ? "" : "border-b border-white/[0.05]"} ${isTop ? "bg-teal/[0.04]" : ""}`}
                   >
-                    <span className="font-display text-2xl font-bold tabular-nums text-white/15">
+                    {isTop && <span className="absolute inset-y-0 left-0 w-0.5 bg-teal" />}
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg font-mono text-xs font-bold tabular-nums ${
+                        top3
+                          ? "bg-teal/15 text-teal ring-1 ring-teal/30"
+                          : "bg-white/[0.04] text-muted ring-1 ring-white/[0.06]"
+                      }`}
+                    >
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-baseline justify-between gap-4">
                         <span className="truncate font-semibold text-ink group-hover:text-teal">
                           {n.niche}
                         </span>
@@ -137,9 +143,9 @@ export default function NicheSections() {
                           {formatCompact(n.creators)} creators
                         </span>
                       </div>
-                      <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-white/[0.06]">
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.05]">
                         <motion.div
-                          className="h-full rounded-full bg-teal"
+                          className="h-full rounded-full bg-teal/80"
                           initial={reduced ? false : { width: 0 }}
                           whileInView={reduced ? undefined : { width: `${w}%` }}
                           viewport={{ once: true }}

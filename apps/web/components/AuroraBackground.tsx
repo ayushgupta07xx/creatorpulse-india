@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 // tracked on window (the layer itself is non-interactive) so the glow follows
 // even over the hero content above it. Reduced-motion: the CSS guards stop
 // the drift and hide the spotlight.
-export default function AuroraBackground() {
+export default function AuroraBackground({ extended = false }: { extended?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,12 +26,15 @@ export default function AuroraBackground() {
     <div
       ref={ref}
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden"
+      className={`pointer-events-none overflow-hidden ${
+        extended ? "fixed inset-0 -z-10" : "absolute inset-0"
+      }`}
     >
       <div className="aurora-blob aurora-b1" />
       <div className="aurora-blob aurora-b2" />
       <div className="aurora-blob aurora-b3" />
       <div className="aurora-blob aurora-b4" />
+      {extended && <div className="aurora-veil" />}
       <div className="aurora-spot" />
     </div>
   );

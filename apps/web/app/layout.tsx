@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import PulseMark from "@/components/PulseMark";
-import ChatWidget from "@/components/ChatWidget";
+import NavBar from "@/components/NavBar";
+import ChatWidgetLazy from "@/components/ChatWidgetLazy";
 import "./globals.css";
 
 const display = Bricolage_Grotesque({
@@ -46,29 +47,16 @@ export default function RootLayout({
             >
               <PulseMark size="sm" />
             </Link>
-            <nav className="flex items-center gap-7 text-sm text-muted">
-              <Link href="/creators" className="transition-colors hover:text-ink">
-                Creators
-              </Link>
-              <Link href="/niches" className="transition-colors hover:text-ink">
-                Niches
-              </Link>
-              <Link href="/brands" className="transition-colors hover:text-ink">
-                Brands
-              </Link>
-              <Link href="/about" className="transition-colors hover:text-ink">
-                About
-              </Link>
-            </nav>
+            <NavBar />
           </div>
         </header>
         <main className="relative flex-1">{children}</main>
         <footer className="relative z-20 border-t border-white/10">
           <div className="mx-auto max-w-wrap px-6 py-6 text-sm text-muted">
-            CreatorPulse
+            <PulseMark size="sm" />
           </div>
         </footer>
-        <ChatWidget />
+        <ChatWidgetLazy />
       </body>
     </html>
   );

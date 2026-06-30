@@ -27,11 +27,13 @@ function initials(title: string): string {
 
 export default function BrandResultCard({
   r,
+  budgetInr,
   shortlisted,
   canAdd,
   onToggle,
 }: {
   r: MatchResult;
+  budgetInr?: number;
   shortlisted: boolean;
   canAdd: boolean;
   onToggle: () => void;
@@ -132,7 +134,31 @@ export default function BrandResultCard({
             </div>
             <div>
               <dt className="text-xs text-muted">Est. sponsored cost</dt>
-              <dd className="font-mono text-ink">{formatINR(r.est_cost_inr)}</dd>
+              <dd className="font-mono text-ink">
+                {(() => {
+                  if (r.cost_basis === "insufficient") return "Insufficient history";
+                  if (r.cost_basis === "unverified") return "Format unverified";
+                  const v = formatINR(r.est_cost_inr);
+                  const note =
+                    r.cost_basis === "cap"
+                      ? " (capped)"
+                      : r.cost_basis === "base"
+                        ? " (base rate)"
+                        : "";
+                  return `${v}${note}`;
+                })()}
+                {budgetInr != null &&
+                  r.cost_basis !== "insufficient" &&
+                  r.cost_basis !== "unverified" &&
+                  r.est_cost_inr > budgetInr && (
+                    <span
+                      className="ml-2 inline-flex items-center rounded-full border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 align-middle text-[10px] font-semibold text-amber-300"
+                      title="Estimated cost exceeds your budget per integration — still shown because match ranks on fit, not just price."
+                    >
+                      Over budget
+                    </span>
+                  )}
+              </dd>
             </div>
             <div>
               <dt className="text-xs text-muted">Engagement risk</dt>

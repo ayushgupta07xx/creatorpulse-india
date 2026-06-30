@@ -62,6 +62,14 @@ export default function CreatorCard({ c }: { c: CreatorSummary }) {
               >
                 {humanizeArchetype(c.archetype)}
               </span>
+              {c.is_short && (
+                <span
+                  className="rounded bg-violet/15 px-2 py-0.5 text-xs font-medium text-violet"
+                  title="Short-form channel — integration priced at the Shorts rate (~0.5× long-form)"
+                >
+                  Shorts
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -87,17 +95,36 @@ export default function CreatorCard({ c }: { c: CreatorSummary }) {
               className="font-mono text-ink"
               title="Roughly what a brand might pay to sponsor one video — estimated from the creator’s audience size, not a quote."
             >
-              {formatINR(c.est_cost_low_inr)}–{formatINR(c.est_cost_high_inr)}
+              {(() => {
+                if (c.cost_basis === "insufficient") return "Insufficient history";
+                if (c.cost_basis === "unverified") return "Format unverified";
+                const lo = formatINR(c.est_cost_low_inr);
+                const hi = formatINR(c.est_cost_high_inr);
+                if (lo !== hi) return `${lo}–${hi}`;
+                const note =
+                  c.cost_basis === "cap"
+                    ? " (capped)"
+                    : c.cost_basis === "base"
+                      ? " (base rate)"
+                      : "";
+                return `${lo}${note}`;
+              })()}
             </dd>
           </div>
           <div>
             <dt className="text-xs text-muted">Engagement risk</dt>
             <dd>
-              <span
-                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${RISK_CLASS[level]}`}
-              >
-                {riskLabel(level)}
-              </span>
+              {c.cost_basis === "insufficient" ? (
+                <span className="inline-flex items-center rounded-full border border-white/15 px-2 py-0.5 text-xs font-semibold text-muted">
+                  Limited history
+                </span>
+              ) : (
+                <span
+                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${RISK_CLASS[level]}`}
+                >
+                  {riskLabel(level)}
+                </span>
+              )}
             </dd>
           </div>
         </dl>

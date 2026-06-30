@@ -12,7 +12,9 @@ import {
   riskLevel,
 } from "@/lib/format";
 import BrandResultCard from "@/components/BrandResultCard";
+import NicheSelect from "@/components/NicheSelect";
 import Reveal from "@/components/Reveal";
+import AuroraBackground from "@/components/AuroraBackground";
 import InfoHint from "@/components/InfoHint";
 
 const NICHES = [
@@ -31,7 +33,7 @@ type Sort = "match" | "cost" | "reach" | "risk";
 type State =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "done"; results: MatchResult[]; explainer: string | null }
+  | { kind: "done"; results: MatchResult[]; explainer: string | null; budgetLakh: number }
   | { kind: "error"; message: string };
 
 const RISK_CLASS: Record<string, string> = {
@@ -78,7 +80,7 @@ export default function BrandsPage() {
         top_k: 20,
         rerank: true,
       });
-      setState({ kind: "done", results: res.results, explainer: res.explainer });
+      setState({ kind: "done", results: res.results, explainer: res.explainer, budgetLakh: budget });
     } catch (e) {
       setState({
         kind: "error",
@@ -104,7 +106,8 @@ export default function BrandsPage() {
     sorted.sort((a, b) => {
       if (sort === "match") return b.final_score - a.final_score;
       if (sort === "cost") return a.est_cost_inr - b.est_cost_inr;
-      if (sort === "reach") return b.mean_views - a.mean_views;
+      if (sort === "reach")
+        return (b.median_views ?? b.mean_views) - (a.median_views ?? a.mean_views);
       return a.fraud_risk - b.fraud_risk;
     });
     return sorted;
@@ -113,7 +116,9 @@ export default function BrandsPage() {
   const shortlistIds = new Set(shortlist.map((s) => s.channel_id));
 
   return (
-    <div className="mx-auto max-w-wrap px-6 py-12">
+    <>
+      <AuroraBackground extended />
+      <div className="mx-auto max-w-wrap px-6 py-12">
       <Reveal>
         <div className="flex items-start justify-between gap-4">
           <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
@@ -148,19 +153,13 @@ export default function BrandsPage() {
               <label htmlFor="niche" className="text-xs font-medium uppercase tracking-wide text-muted">
                 Niche
               </label>
-              <select
+              <NicheSelect
                 id="niche"
                 value={niche}
-                onChange={(e) => setNiche(e.target.value)}
-                className={`mt-2 ${FIELD} cursor-pointer py-2.5`}
-              >
-                <option value="">Any niche</option>
-                {NICHES.map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
+                onChange={setNiche}
+                options={NICHES}
+                buttonClassName={`mt-2 ${FIELD} py-2.5`}
+              />
             </div>
             <div className="flex-1">
               <label
@@ -263,6 +262,7 @@ export default function BrandsPage() {
                 <Reveal key={r.channel_id} delay={Math.min(i * 0.04, 0.4)}>
                   <BrandResultCard
                     r={r}
+                    budgetInr={state.kind === "done" ? state.budgetLakh * 100000 : undefined}
                     shortlisted={shortlistIds.has(r.channel_id)}
                     canAdd={shortlist.length < MAX_SHORTLIST}
                     onToggle={() => toggleShortlist(r)}
@@ -325,12 +325,27 @@ export default function BrandsPage() {
                   />
                   <CompareRow
                     label="Est. cost"
-                    cells={shortlist.map((s) => formatINR(s.est_cost_inr))}
+                    cells={shortlist.map((s) => {
+                      if (s.cost_basis === "insufficient") return "Insufficient history";
+                      if (s.cost_basis === "unverified") return "Format unverified";
+                      const v = formatINR(s.est_cost_inr);
+                      const note =
+                        s.cost_basis === "cap"
+                          ? " (capped)"
+                          : s.cost_basis === "base"
+                            ? " (base rate)"
+                            : "";
+                      return `${v}${note}`;
+                    })}
                   />
                   <CompareRow label="Niche" cells={shortlist.map((s) => s.niche)} />
                   <CompareRow
                     label="Archetype"
                     cells={shortlist.map((s) => humanizeArchetype(s.archetype))}
+                  />
+                  <CompareRow
+                    label="Format"
+                    cells={shortlist.map((s) => (s.is_short ? "Shorts" : "Long-form"))}
                   />
                   <tr className="border-t border-white/5">
                     <td className="p-3 font-sans text-muted">Engagement risk</td>
@@ -358,5 +373,6 @@ export default function BrandsPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

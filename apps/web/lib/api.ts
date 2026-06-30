@@ -31,6 +31,9 @@ export interface CreatorSummary {
   est_cost_inr: number;
   est_cost_low_inr: number;
   est_cost_high_inr: number;
+  // Why the cost shows as a single value: "cap" (hit the Rs50L ceiling), "base"
+  // (floored to the audience base rate), or "range" (a genuine low-high span).
+  cost_basis?: "cap" | "base" | "range" | "insufficient" | "unverified";
   // True when the channel's typical upload is a Short (<70s) — pricing applies the
   // Shorts format multiplier, and the card shows a Shorts chip.
   is_short?: boolean | null;

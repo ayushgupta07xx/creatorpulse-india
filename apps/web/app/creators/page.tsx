@@ -1,13 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import EmptyState, { AlertIcon, SearchOffIcon } from "@/components/EmptyState";
 import SkeletonGrid from "@/components/SkeletonGrid";
 import Link from "next/link";
 import { searchCreators, type CreatorSummary } from "@/lib/api";
 import CreatorCard from "@/components/CreatorCard";
 import Reveal from "@/components/Reveal";
+import AuroraBackground from "@/components/AuroraBackground";
 import InfoHint from "@/components/InfoHint";
+
+const PLACEHOLDER_NAMES = [
+  "CarryMinati", "BB Ki Vines", "Technical Guruji", "ashish chanchlani vines",
+  "Mythpat", "Triggered Insaan", "Harsh Beniwal", "Flying Beast",
+  "Mumbiker Nikhil", "Sandeep Maheshwari", "Gaurav Chaudhary", "Round2hell",
+  "Amit Bhadana", "Elvish yadav", "Fukra Insaan", "Slayy Point",
+  "Tanmay Bhat", "Samay Raina", "Kabita's Kitchen", "Sanjeev Kapoor Khazana",
+  "Your Food Lab", "Dolly Singh", "Ranveer Allahbadia", "Abhi and Niyu",
+  "Zakir Khan", "Aakash Gupta", "BeerBiceps", "Krish Naik",
+  "CodeWithHarry", "wifistudy 2.0 by Unacademy",
+];
 
 type State =
   | { kind: "idle" }
@@ -18,6 +30,26 @@ type State =
 export default function CreatorsPage() {
   const [q, setQ] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
+  const names = useMemo(() => {
+    const a = [...PLACEHOLDER_NAMES];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }, []);
+  const [phIdx, setPhIdx] = useState(0);
+  const reduced = useRef(false);
+  useEffect(() => {
+    reduced.current =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+  useEffect(() => {
+    if (q || reduced.current) return;
+    const id = setInterval(() => setPhIdx((i) => (i + 1) % names.length), 1500);
+    return () => clearInterval(id);
+  }, [q, names.length]);
 
   async function run(initial?: string) {
     const term = (initial ?? q).trim();
@@ -49,7 +81,9 @@ export default function CreatorsPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-wrap px-6 py-12">
+    <>
+      <AuroraBackground extended />
+      <div className="mx-auto max-w-wrap px-6 py-12">
       <Reveal>
         <div className="flex items-start justify-between gap-4">
           <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
@@ -68,7 +102,7 @@ export default function CreatorsPage() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && run()}
-            placeholder="e.g. Sandeep Maheshwari"
+            placeholder={`e.g. ${names[phIdx]}`}
             aria-label="Creator name"
             className="w-full rounded-xl border border-white/10 bg-surface/60 px-4 py-3 text-ink placeholder:text-muted focus:border-violet focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet"
           />
@@ -97,8 +131,25 @@ export default function CreatorsPage() {
           <EmptyState
             icon={<SearchOffIcon />}
             title={`No match for “${q.trim()}”`}
-            body="The catalogue is a
-            fixed set of Indian creators, so not every channel is covered — try another name."
+            body={
+              <>
+                The catalogue is a fixed set of Indian creators, so not every channel is covered —
+                try another name.{" "}
+                <button
+                  type="button"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("creatorpulse:ask", {
+                        detail: { q: `Why is “${q.trim()}” not in the database?` },
+                      }),
+                    )
+                  }
+                  className="font-medium text-teal underline-offset-2 transition-colors hover:text-violet hover:underline"
+                >
+                  Learn more
+                </button>
+              </>
+            }
           />
         )}
 
@@ -115,5 +166,6 @@ export default function CreatorsPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

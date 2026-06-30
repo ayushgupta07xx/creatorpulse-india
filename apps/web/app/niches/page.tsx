@@ -7,6 +7,7 @@ import Link from "next/link";
 import { getNiches, type NicheSummary } from "@/lib/api";
 import { formatCompact } from "@/lib/format";
 import Reveal from "@/components/Reveal";
+import AuroraBackground from "@/components/AuroraBackground";
 import InfoHint from "@/components/InfoHint";
 
 function momentum(n: NicheSummary): number {
@@ -36,7 +37,9 @@ export default function NichesPage() {
   }, [niches, sort]);
 
   return (
-    <div className="mx-auto max-w-wrap px-6 py-12">
+    <>
+      <AuroraBackground extended />
+      <div className="mx-auto max-w-wrap px-6 py-12">
       <Reveal>
         <div className="flex items-start justify-between gap-4">
           <h1 className="font-display text-3xl font-bold tracking-tight text-ink sm:text-4xl">
@@ -88,15 +91,33 @@ export default function NichesPage() {
             const arrow = up ? "↑" : down ? "↓" : "→";
             const accent = up ? "bg-teal" : down ? "bg-pink" : "bg-white/15";
             const tone = up ? "text-teal" : down ? "text-pink" : "text-muted";
+            const ringTone = up
+              ? "ring-teal/20 hover:ring-teal/45"
+              : down
+                ? "ring-pink/20 hover:ring-pink/45"
+                : "ring-white/[0.07] hover:ring-white/20";
+            const ghostTone = up
+              ? "text-teal/[0.07]"
+              : down
+                ? "text-pink/[0.07]"
+                : "text-white/[0.04]";
+            const glowTone = up
+              ? "0_0_30px_-10px_rgba(84,224,206,0.35)"
+              : down
+                ? "0_0_30px_-10px_rgba(255,95,168,0.30)"
+                : "0_0_24px_-12px_rgba(255,255,255,0.10)";
             return (
               <Reveal key={n.niche} delay={Math.min(i * 0.03, 0.3)}>
                 <Link
                   href={`/niches/${encodeURIComponent(n.niche)}`}
-                  className="group relative block h-full overflow-hidden rounded-2xl bg-gradient-to-b from-surface2 to-surface p-5 ring-1 ring-white/[0.06] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_12px_30px_-18px_rgba(0,0,0,0.85)] transition-all duration-200 hover:-translate-y-1 hover:ring-white/15"
+                  className={`card-fill group relative block h-full overflow-hidden rounded-2xl p-5 ring-1 ${ringTone} transition-all duration-200 hover:-translate-y-1`}
+                  style={{
+                    boxShadow: `inset 0 1px 0 0 rgba(255,255,255,0.05), 0 12px 30px -18px rgba(0,0,0,0.85), ${glowTone.replace(/_/g, " ")}`,
+                  }}
                 >
                   <span className={`absolute inset-y-0 left-0 w-1 ${accent}`} aria-hidden />
                   <span
-                    className="pointer-events-none absolute -right-1 -top-4 select-none font-display text-7xl font-bold leading-none text-white/[0.04]"
+                    className={`pointer-events-none absolute -right-1 -top-4 select-none font-display text-7xl font-bold leading-none ${ghostTone}`}
                     aria-hidden
                   >
                     {String(i + 1).padStart(2, "0")}
@@ -143,5 +164,6 @@ export default function NichesPage() {
         </div>
       )}
     </div>
+    </>
   );
 }
