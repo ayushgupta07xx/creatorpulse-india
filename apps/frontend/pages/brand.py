@@ -16,8 +16,15 @@ for _p in (str(REPO_ROOT), str(FRONTEND_DIR)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+import os  # noqa: E402
+
+import requests  # noqa: E402
 from components import analytics, data  # noqa: E402
 from components.about import render_about_sidebar  # noqa: E402
+
+# Match runs on the deployed API (torch-free frontend). Local dev falls back
+# to a local uvicorn; Streamlit Cloud sets API_BASE to the Space URL.
+API_BASE = os.environ.get("API_URL", "http://localhost:8000").rstrip("/")
 
 st.set_page_config(page_title="CreatorPulse — Brands", page_icon="📊", layout="wide")
 from components.ui import apply_theme  # noqa: E402
@@ -54,13 +61,18 @@ def top_fraud_signals(k: int = 3) -> list[str]:
 def run_match(
     brief: str, budget_lakh: float, top_k: int, rerank: bool = True, niche_filter: str | None = None
 ) -> pd.DataFrame:
-    # Lazy import: apps.ml.match pulls sentence-transformers/torch, so keeping
-    # it inside the handler means torch only loads on the first real search.
-    from apps.ml import match as match_engine
-
-    return match_engine.match(
-        brief, budget_lakh=budget_lakh, top_k=top_k, rerank=rerank, niche_filter=niche_filter
-    )
+    # Calls the deployed /match API (see API_BASE). Keeps the frontend
+    # torch-free: the Space owns sentence-transformers + the DB.
+    payload = {
+        "brief": brief,
+        "budget_lakh": budget_lakh,
+        "top_k": top_k,
+        "rerank": rerank,
+        "niche_filter": niche_filter,
+    }
+    resp = requests.post(f"{API_BASE}/match", json=payload, timeout=60)
+    resp.raise_for_status()
+    return pd.DataFrame(resp.json().get("results", []))
 
 
 @st.cache_resource(show_spinner=False)
@@ -231,8 +243,8 @@ brief_used = st.session_state.get("brand_brief", "")
 
 if results:
     res = pd.DataFrame(results)
-    join_cols = ["channel_id", "thumbnail_url", "subscriber_count", "mean_views"]
-    res = res.merge(creators_df[join_cols], on="channel_id", how="left")
+    # No merge needed: the /match API already returns thumbnail_url,
+    # subscriber_count, mean_views, and title on every row.
     signals = top_fraud_signals(3)
     current_short = shortlist_ids(session_id)
 
