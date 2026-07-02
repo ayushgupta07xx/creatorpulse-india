@@ -2,7 +2,7 @@
 
 Low-fidelity wireframes for the dual-persona UX are maintained in Figma.
 
-> **Figma link:** `<PASTE PUBLIC FIGMA LINK HERE>`
+> **Figma link:** https://www.figma.com/design/EKjsB4ZJRgTOZ86Qfu2dkJ/CreatorPulse-India-%E2%80%94-Wireframes?node-id=0-1
 > Set the Figma file's share setting to *Anyone with the link → can view* before pasting, and verify the link in an incognito window (logged-out view ≠ owner view).
 
 The screen inventory below is the source of truth for what the Figma file must contain; it doubles as the wireframe spec so the doc is useful even before the link is live. Each screen maps to functional requirements in `FRD.md` and user stories in `user_stories.md`.
@@ -30,7 +30,7 @@ The screen inventory below is the source of truth for what the Figma file must c
 
 - Low-fidelity (greyscale boxes + labels), not high-fidelity mockups — intent is layout and flow, not visual design.
 - Annotate each interactive element with the event it fires, to keep wireframes and the analytics taxonomy in sync.
-- Brand system (for any higher-fidelity follow-up): Petrol accent `#3E6668` / `#2D4D4F`, Manrope/Inter/JetBrains Mono type stack. Reserve red/green strictly for the single engagement-risk meaning — no other red/green in the UI.
+- Brand system (for any higher-fidelity follow-up): Deep base `#07070B` / surface `#111C20`, teal accent `#54E0CE`, Manrope type. Reserve red/green strictly for the single engagement-risk meaning — no other red/green in the UI.
 
 ---
 
